@@ -18,6 +18,7 @@
     width?: number;
     height?: number;
     carbRatio?: number;
+    showLegend?: boolean;
     dialog: Snippet<[{ open: boolean; onOpenChange: (v: boolean) => void; children: Snippet }]>;
     badge: Snippet<[{ variant?: 'default' | 'outline' | 'destructive'; class?: string; children: Snippet }]>;
     button: Snippet<[{ onclick: () => void; variant?: string; size?: string; children: Snippet }]>;
@@ -28,6 +29,7 @@
     width,
     height = 400,
     carbRatio = 15,
+    showLegend = true,
     dialog,
     badge,
     button,
@@ -291,6 +293,7 @@
 
 <div style="width: {width ? width + 'px' : '100%'};">
   <!-- Legend -->
+  {#if showLegend}
   <ChartLegend
     {glucoseData}
     {highThreshold}
@@ -328,6 +331,7 @@
     {expandedPumpModes}
     onToggleExpandedPumpModes={() => (expandedPumpModes = !expandedPumpModes)}
   />
+  {/if}
 
   <!-- Basal Chart -->
   {#if showBasal}
