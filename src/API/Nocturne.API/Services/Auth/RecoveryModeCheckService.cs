@@ -62,14 +62,6 @@ public class RecoveryModeCheckService : IHostedService
 
             if (!activeSubjects)
             {
-                if (!string.IsNullOrEmpty(_multitenancyConfig.BaseDomain))
-                {
-                    _logger.LogInformation(
-                        "No user subjects found, but multitenancy is enabled — skipping setup mode"
-                    );
-                    return;
-                }
-
                 _state.IsSetupRequired = true;
                 _logger.LogWarning(
                     "Setup mode enabled: no user subjects found (fresh database)"
