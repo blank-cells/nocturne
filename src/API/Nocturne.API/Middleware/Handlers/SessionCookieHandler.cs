@@ -45,16 +45,9 @@ public class SessionCookieHandler : IAuthHandler
     /// <inheritdoc />
     public async Task<AuthResult> AuthenticateAsync(HttpContext context)
     {
-        // Skip if OIDC is not enabled
-        if (!_options.Enabled)
-        {
-            _logger.LogInformation(
-                "[SessionCookieHandler] OIDC is disabled, skipping"
-            );
-            return AuthResult.Skip();
-        }
-
         // Check for access token in session cookie
+        // Note: We always check session cookies regardless of OIDC enabled state,
+        // because passkey authentication also issues JWTs stored in session cookies.
         var accessToken = context.Request.Cookies[_options.Cookie.AccessTokenName];
         // Log all cookies received for debugging
         var allCookies = context.Request.Cookies.Keys;
