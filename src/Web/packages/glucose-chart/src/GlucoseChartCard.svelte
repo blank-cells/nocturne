@@ -500,7 +500,7 @@
   open={glucoseDialogOpen}
   timestamp={inspectionTime ?? new Date()}
   glucoseValue={inspectedGlucosePoint?.sgv ?? 0}
-  glucoseColor={inspectedGlucosePoint?.color ?? 'var(--glucose-in-range)'}
+  glucoseColor={inspectedGlucosePoint?.color ?? 'var(--color-glucose-in-range)'}
   direction={inspectedGlucosePoint?.direction ?? undefined}
   previousGlucoseValue={inspectedPrevGlucose}
   dataSource={inspectedGlucosePoint?.dataSource ?? undefined}

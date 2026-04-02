@@ -162,7 +162,7 @@
         <Tooltip.Item
           label="Glucose"
           value={`${bg(data.sgv)} ${bgLabel()}`}
-          color="var(--glucose-in-range)"
+          color="var(--color-glucose-in-range)"
           class="text-popover-foreground font-bold"
         />
       {/if}
@@ -170,7 +170,7 @@
         <Tooltip.Item
           label="Bolus"
           value={`${(nearbyBolus.insulin ?? 0).toFixed(1)}U`}
-          color="var(--insulin-bolus)"
+          color="var(--color-insulin-bolus)"
           class="font-medium"
         />
       {/if}
@@ -178,7 +178,7 @@
         <Tooltip.Item
           label="Carbs"
           value={`${nearbyCarbs.carbs ?? 0}g`}
-          color="var(--carbs)"
+          color="var(--color-carbs)"
           class="font-medium"
         />
       {/if}
@@ -195,14 +195,14 @@
           label="IOB"
           value={activeIob.value}
           format={"decimal"}
-          color="var(--iob-basal)"
+          color="var(--color-iob-basal)"
         />
       {/if}
       {#if showCob && activeCob && activeCob.value > 0}
         <Tooltip.Item
           label="COB"
           value={`${activeCob.value.toFixed(0)}g`}
-          color="var(--carbs)"
+          color="var(--color-carbs)"
         />
       {/if}
       {#if showBasal && (activeBasal || activeBasalDelivery || activeTempBasal)}
@@ -225,8 +225,8 @@
             format={"decimal"}
             color={isAdjusted ||
             activeBasal.origin === BasalDeliveryOrigin.Suspended
-              ? "var(--insulin-temp-basal)"
-              : "var(--insulin-basal)"}
+              ? "var(--color-insulin-temp-basal)"
+              : "var(--color-insulin-basal)"}
             class={cn(
               staleBasalData && data.time >= staleBasalData.start
                 ? "text-yellow-500 font-bold"
@@ -238,7 +238,7 @@
               label="Scheduled"
               value={activeBasal.scheduledRate}
               format={"decimal"}
-              color="var(--muted-foreground)"
+              color="var(--color-muted-foreground)"
             />
           {/if}
         {:else if activeBasalDelivery}
@@ -260,8 +260,8 @@
             format={"decimal"}
             color={isAdjusted ||
             activeBasalDelivery.origin === BasalDeliveryOrigin.Suspended
-              ? "var(--insulin-temp-basal)"
-              : "var(--insulin-basal)"}
+              ? "var(--color-insulin-temp-basal)"
+              : "var(--color-insulin-basal)"}
             class={cn(
               staleBasalData && data.time >= staleBasalData.start
                 ? "text-yellow-500 font-bold"
@@ -273,13 +273,13 @@
             label="Temp Basal"
             value={activeTempBasal.rate}
             format={"decimal"}
-            color="var(--insulin-temp-basal)"
+            color="var(--color-insulin-temp-basal)"
           />
           {#if activeTempBasal.percent != null}
             <Tooltip.Item
               label="Percent"
               value={`${activeTempBasal.percent}%`}
-              color="var(--muted-foreground)"
+              color="var(--color-muted-foreground)"
             />
           {/if}
         {/if}

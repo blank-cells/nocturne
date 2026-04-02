@@ -5,10 +5,10 @@
 
 /**
  * Resolve a ChartColor enum value to a CSS variable reference
- * e.g. "glucose-in-range" → "var(--glucose-in-range)"
+ * e.g. "glucose-in-range" → "var(--color-glucose-in-range)"
  */
 export function resolveChartColor(color: string): string {
-	return `var(--${color})`;
+	return `var(--color-${color})`;
 }
 
 /**
@@ -19,9 +19,9 @@ export function getGlucoseColor(
 	sgvMgdl: number,
 	thresholds: { low: number; high: number; veryLow: number; veryHigh: number }
 ): string {
-	if (sgvMgdl < thresholds.veryLow) return 'var(--glucose-very-low)';
-	if (sgvMgdl < thresholds.low) return 'var(--glucose-low)';
-	if (sgvMgdl <= thresholds.high) return 'var(--glucose-in-range)';
-	if (sgvMgdl <= thresholds.veryHigh) return 'var(--glucose-high)';
-	return 'var(--glucose-very-high)';
+	if (sgvMgdl < thresholds.veryLow) return 'var(--color-glucose-very-low)';
+	if (sgvMgdl < thresholds.low) return 'var(--color-glucose-low)';
+	if (sgvMgdl <= thresholds.high) return 'var(--color-glucose-in-range)';
+	if (sgvMgdl <= thresholds.veryHigh) return 'var(--color-glucose-high)';
+	return 'var(--color-glucose-very-high)';
 }

@@ -170,33 +170,33 @@
 {#snippet carbsIconSnippet()}<Utensils size={16} />{/snippet}
 {#snippet sensorIcon()}<Wifi
     size={16}
-    color="var(--glucose-in-range)"
+    color="var(--color-glucose-in-range)"
   />{/snippet}
 {#snippet siteIcon()}<MapPin
     size={16}
-    color="var(--insulin-bolus)"
+    color="var(--color-insulin-bolus)"
   />{/snippet}
 {#snippet reservoirIcon()}<Droplets
     size={16}
-    color="var(--insulin-basal)"
+    color="var(--color-insulin-basal)"
   />{/snippet}
-{#snippet batteryIcon()}<Battery size={16} color="var(--carbs)" />{/snippet}
+{#snippet batteryIcon()}<Battery size={16} color="var(--color-carbs)" />{/snippet}
 {#snippet overrideIcon()}<div
     class="w-3 h-2 rounded border"
-    style="background-color: var(--pump-mode-boost); opacity: 0.3; border-color: var(--pump-mode-boost)"
+    style="background-color: var(--color-pump-mode-boost); opacity: 0.3; border-color: var(--color-pump-mode-boost)"
   ></div>{/snippet}
 {#snippet profileIcon()}<div
     class="w-3 h-2 rounded border"
-    style="background-color: var(--chart-1); opacity: 0.2; border-color: var(--chart-1)"
+    style="background-color: var(--color-chart-1); opacity: 0.2; border-color: var(--color-chart-1)"
   ></div>{/snippet}
 {#snippet activityIcon()}<div class="flex items-center gap-0.5">
     <div
       class="w-2 h-2 rounded"
-      style="background-color: var(--pump-mode-sleep)"
+      style="background-color: var(--color-pump-mode-sleep)"
     ></div>
     <div
       class="w-2 h-2 rounded"
-      style="background-color: var(--pump-mode-exercise)"
+      style="background-color: var(--color-pump-mode-exercise)"
     ></div>
   </div>{/snippet}
 
@@ -306,7 +306,7 @@
         {#if event && eventType}
           <AlertTriangle
             size={14}
-            color={showAlarms ? (event.color ?? "var(--muted-foreground)") : "var(--muted-foreground)"}
+            color={showAlarms ? (event.color ?? "var(--color-muted-foreground)") : "var(--color-muted-foreground)"}
           />
         {/if}
       {/each}
