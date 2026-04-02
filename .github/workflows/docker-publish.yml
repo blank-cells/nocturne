@@ -90,6 +90,25 @@ jobs:
       - name: Setup appsettings.json for NSwag
         run: cp appsettings.example.json appsettings.json
 
+      # Generate API client, Zod schemas, and remote functions for the web build.
+      # These files are gitignored (regenerated on every build) so we must produce
+      # them here before the Docker build which needs them.
+      # IMPORTANT: This must run BEFORE dotnet publish, because publish marks the
+      # build outputs as up-to-date, causing a subsequent dotnet build to skip
+      # the post-build generation targets (NSwag, Zod, remote codegen).
+      - name: Generate API client for web build
+        working-directory: src/API/Nocturne.API
+        run: dotnet build -c Release
+
+      - name: Verify generated API client files
+        run: |
+          if [ ! -f src/Web/packages/app/src/lib/api/generated/passkeys.generated.remote.ts ]; then
+            echo "::error::Generated API client files are missing. NSwag/remote codegen may have failed."
+            ls -la src/Web/packages/app/src/lib/api/generated/ 2>/dev/null || echo "Generated directory does not exist"
+            exit 1
+          fi
+          echo "Generated API client files found ($(ls src/Web/packages/app/src/lib/api/generated/*.generated.remote.ts | wc -l) remote files)"
+
       # Build container images using .NET's built-in container support
       # Aspire projects are standard .NET projects that can be published as containers
       - name: Build and push Nocturne.API container
@@ -102,13 +121,6 @@ jobs:
             -p:ContainerRegistry=${{ env.REGISTRY }} \
             -p:ContainerRepository=${{ env.IMAGE_REPOSITORY }}/nocturne-api \
             -p:ContainerImageTag=${{ steps.version.outputs.version }}
-
-      # Generate API client, Zod schemas, and remote functions for the web build.
-      # These files are gitignored (regenerated on every build) so we must produce
-      # them here before the Docker build which needs them.
-      - name: Generate API client for web build
-        working-directory: src/API/Nocturne.API
-        run: dotnet build -c Release
 
       # Build web app using standard Docker build (Node.js/Vite apps don't use .NET container publishing)
       - name: Build and push Nocturne.Web container
