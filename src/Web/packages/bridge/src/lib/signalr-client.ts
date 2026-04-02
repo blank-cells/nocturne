@@ -72,7 +72,12 @@ class SignalRClient {
       }
 
       if (this.configHubUrl) {
-        this.configConnection = this.buildConnection(this.configHubUrl);
+        const secretHash = createHash("sha1")
+          .update(this.apiSecret)
+          .digest("hex");
+        this.configConnection = this.buildConnection(this.configHubUrl, {
+          headers: { "api-secret": secretHash },
+        });
         this.setupConfigEventHandlers();
 
         await this.configConnection.start();
@@ -90,9 +95,12 @@ class SignalRClient {
     }
   }
 
-  private buildConnection(hubUrl: string): HubConnection {
+  private buildConnection(
+    hubUrl: string,
+    options?: { headers?: Record<string, string> },
+  ): HubConnection {
     return new HubConnectionBuilder()
-      .withUrl(hubUrl)
+      .withUrl(hubUrl, options?.headers ? { headers: options.headers } : {})
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: (retryContext) => {
           const delay = Math.min(

@@ -120,10 +120,12 @@ const authHandle: Handle = async ({ event, resolve }) => {
   try {
     // Create a temporary API client with auth tokens for session validation
     const refreshToken = event.cookies.get(AUTH_COOKIE_NAMES.refreshToken);
+    const hostHeader = event.request.headers.get("host");
     const apiClient = createServerApiClient(apiBaseUrl, fetch, {
       accessToken,
       refreshToken,
       hashedSecret: getHashedApiSecret(),
+      extraHeaders: hostHeader ? { "X-Forwarded-Host": hostHeader } : undefined,
     });
 
     // Validate session with the API using the typed client
@@ -184,8 +186,10 @@ const siteSecurityHandle: Handle = async ({ event, resolve }) => {
 
   try {
     if (!event.locals.siteSecurityChecked) {
+      const hostHeader = event.request.headers.get("host");
       const apiClient = createServerApiClient(apiBaseUrl, fetch, {
         hashedSecret: getHashedApiSecret(),
+        extraHeaders: hostHeader ? { "X-Forwarded-Host": hostHeader } : undefined,
       });
 
       const status = await apiClient.status.getStatus();
@@ -205,23 +209,38 @@ const siteSecurityHandle: Handle = async ({ event, resolve }) => {
       });
     }
   } catch (error) {
-    if (error && typeof error === "object" && "status" in error && (error as any).status === 503) {
-      try {
-        const body = JSON.parse((error as any).response ?? "{}");
-        if (body.setupRequired) {
+    if (error && typeof error === "object" && "status" in error) {
+      const status = (error as any).status;
+
+      // Tenant not found — redirect to marketing site if configured
+      if (status === 404) {
+        const marketingUrl = env.MARKETING_URL;
+        if (marketingUrl) {
           return new Response(null, {
-            status: 303,
-            headers: { Location: "/settings/setup/passkey" },
+            status: 302,
+            headers: { Location: marketingUrl },
           });
         }
-        if (body.recoveryMode) {
-          return new Response(null, {
-            status: 303,
-            headers: { Location: "/auth/recovery" },
-          });
+      }
+
+      if (status === 503) {
+        try {
+          const body = JSON.parse((error as any).response ?? "{}");
+          if (body.setupRequired) {
+            return new Response(null, {
+              status: 303,
+              headers: { Location: "/settings/setup/passkey" },
+            });
+          }
+          if (body.recoveryMode) {
+            return new Response(null, {
+              status: 303,
+              headers: { Location: "/auth/recovery" },
+            });
+          }
+        } catch {
+          // Couldn't parse, fall through
         }
-      } catch {
-        // Couldn't parse, fall through
       }
     }
     console.error("Failed to check site security settings:", error);
@@ -249,6 +268,11 @@ const proxyHandle: Handle = async ({ event, resolve }) => {
 
     // Forward the request to the backend API
     const headers = new Headers(event.request.headers);
+    // Forward original Host for tenant resolution behind reverse proxies
+    const originalHost = event.request.headers.get("host");
+    if (originalHost) {
+      headers.set("X-Forwarded-Host", originalHost);
+    }
     if (hashedSecret) {
       headers.set("api-secret", hashedSecret);
     }
@@ -304,6 +328,12 @@ const apiClientHandle: Handle = async ({ event, resolve }) => {
   const actingAs = event.request.headers.get("x-acting-as");
   if (actingAs) {
     extraHeaders["X-Acting-As"] = actingAs;
+  }
+
+  // Forward the original Host for tenant resolution behind reverse proxies
+  const originalHost = event.request.headers.get("host");
+  if (originalHost) {
+    extraHeaders["X-Forwarded-Host"] = originalHost;
   }
 
   // Create API client with SvelteKit's fetch, auth headers, and both tokens

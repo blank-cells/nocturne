@@ -81,6 +81,7 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0",
       port: parseInt(process.env.PORT || "1612", 10),
       strictPort: true, // Fail if port is already in use instead of trying another
+      allowedHosts: true,
       watch: {
         ignored: ["**/node_modules/**", "**/.git/**"],
         usePolling: false,

@@ -69,6 +69,28 @@ public partial class TenantService : ITenantService
         return ToDto(tenant);
     }
 
+    public async Task<TenantDto> CreateWithoutOwnerAsync(
+        string slug, string displayName, string? apiSecret = null, CancellationToken ct = default)
+    {
+        await using var context = await _factory.CreateDbContextAsync(ct);
+
+        var tenant = new TenantEntity
+        {
+            Slug = slug.ToLowerInvariant(),
+            DisplayName = displayName,
+            ApiSecretHash = apiSecret != null ? HashUtils.Sha1Hex(apiSecret) : null,
+            IsActive = true,
+        };
+
+        context.Tenants.Add(tenant);
+        await context.SaveChangesAsync(ct);
+
+        // Seed default roles for this tenant (but don't assign an owner)
+        await _roleService.SeedRolesForTenantAsync(tenant.Id, ct);
+
+        return ToDto(tenant);
+    }
+
     public async Task<List<TenantDto>> GetAllAsync(CancellationToken ct = default)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);

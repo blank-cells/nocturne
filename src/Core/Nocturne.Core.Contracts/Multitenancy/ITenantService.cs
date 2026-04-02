@@ -3,6 +3,7 @@ namespace Nocturne.Core.Contracts.Multitenancy;
 public interface ITenantService
 {
     Task<TenantDto> CreateAsync(string slug, string displayName, Guid creatorSubjectId, string? apiSecret = null, CancellationToken ct = default);
+    Task<TenantDto> CreateWithoutOwnerAsync(string slug, string displayName, string? apiSecret = null, CancellationToken ct = default);
     Task<List<TenantDto>> GetAllAsync(CancellationToken ct = default);
     Task<TenantDetailDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<TenantDto> UpdateAsync(Guid id, string displayName, bool isActive, bool? allowAccessRequests = null, CancellationToken ct = default);

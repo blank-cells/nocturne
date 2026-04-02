@@ -1,18 +1,27 @@
+# Requires build context = repo root (not src/Web/)
+# Requires pre-generated API client: run `aspire run` or `dotnet build -t:GenerateClient`
+# before building this image.
+#
+# Build: docker build -t nocturne-web:local -f src/Web/Dockerfile .
+
 FROM node:24-alpine AS build
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 
 # Install dependencies (layer cached when lockfile unchanged)
-COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
-COPY packages/app/package.json packages/app/
-COPY packages/bridge/package.json packages/bridge/
-COPY packages/bot/package.json packages/bot/
-COPY packages/portal/package.json packages/portal/
+COPY src/Web/pnpm-workspace.yaml src/Web/package.json src/Web/pnpm-lock.yaml ./
+COPY src/Web/packages/app/package.json packages/app/
+COPY src/Web/packages/bridge/package.json packages/bridge/
+COPY src/Web/packages/bot/package.json packages/bot/
+COPY src/Web/packages/portal/package.json packages/portal/
 RUN pnpm install --frozen-lockfile
 
 # Copy source — then reinstall to fix any symlinks overwritten by COPY
-COPY . .
+COPY src/Web/ .
 RUN pnpm install --frozen-lockfile
+
+# Copy pre-generated API client (NSwag output from dotnet build)
+COPY src/Web/packages/app/src/lib/api/generated/ packages/app/src/lib/api/generated/
 
 RUN pnpm --filter @nocturne/bridge build 2>/dev/null || true
 RUN pnpm --filter @nocturne/app run build:sveltekit

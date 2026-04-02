@@ -127,6 +127,8 @@ Console.WriteLine(
 // Add response caching for GET endpoints
 builder.Services.AddResponseCaching();
 
+builder.Services.AddHttpContextAccessor();
+
 // Add native API services for strangler pattern
 // Note: NightscoutJsonFilter is added globally to apply null-omission and
 // NocturneOnly field exclusion to v1-v3 API responses only
@@ -391,4 +393,33 @@ static bool IsRunningInNSwagContext()
 namespace Nocturne.API
 {
     public partial class Program { }
+}
+
+// NSwag 14.x discovers the host via reflection on the entry-point type's DeclaringType.
+// .NET 10.0.104 compiles top-level statements into a global "Program" class (not Nocturne.API.Program),
+// so this partial must be in the global namespace for NSwag to find CreateHostBuilder.
+public partial class Program
+{
+    public static IHostBuilder CreateHostBuilder(string[] args) =>
+        Host.CreateDefaultBuilder(args)
+            .ConfigureWebHostDefaults(webBuilder =>
+            {
+                webBuilder.UseStartup<NSwagStartup>();
+            });
+}
+
+/// <summary>Minimal startup used only by NSwag for OpenAPI schema extraction.</summary>
+internal class NSwagStartup
+{
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddControllers()
+            .AddApplicationPart(typeof(Nocturne.API.Program).Assembly);
+        services.AddOpenApiDocument();
+    }
+
+    public void Configure(IApplicationBuilder app)
+    {
+        app.UseRouting();
+    }
 }

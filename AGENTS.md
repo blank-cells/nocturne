@@ -32,7 +32,7 @@ dotnet test --filter "Category=Integration"
 cd src/Web/packages/app && pnpm run check
 ```
 
-Aspire creates the NSwag client on startup, and orchestrates everything. All you need to do to regenerate the NSwag client is `aspire run`.
+Aspire creates the NSwag client on startup, and orchestrates everything. All you need to do to regenerate the NSwag client is `aspire start`.
 
 ## Architecture
 
@@ -46,7 +46,6 @@ src/
 ├── Core/
 │   ├── Nocturne.Core.Contracts    # Service interfaces
 │   ├── Nocturne.Core.Models       # Domain models
-│   ├── Nocturne.Core.Oref         # Oref P:bindings
 │   ├── Nocturne.Core.Constants    # Shared constants (ServiceNames)
 │   └── oref                       # Oref rust library
 ├── Infrastructure/            # Data access, caching, security
@@ -136,31 +135,3 @@ Domain models use **mills-first** timestamps - Unix milliseconds is canonical:
 - We never use emoji generally, and we prefer Lucide icons over unicode emoji for UI elements.
 
 This repository is set up to use Aspire. Aspire is an orchestrator for the entire application and will take care of configuring dependencies, building, and running the application. The resources that make up the application are defined in `apphost.cs` including application code and external dependencies.
-
-## General recommendations for working with Aspire
-
-1. Before making any changes always run the apphost using `aspire run` and inspect the state of resources to make sure you are building from a known state.
-2. Changes to the _apphost.cs_ file will require a restart of the application to take effect.
-3. Make changes incrementally and run the aspire application using the `aspire run` command to validate changes.
-4. Use the Aspire MCP tools to check the status of resources and debug issues.
-
-## Checking resources
-
-To check the status of resources defined in the app model use the _list resources_ tool. This will show you the current state of each resource and if there are any issues. If a resource is not running as expected you can use the _execute resource command_ tool to restart it or perform other actions.
-
-## Debugging issues
-
-IMPORTANT! Aspire is designed to capture rich logs and telemetry for all resources defined in the app model. Use the following diagnostic tools when debugging issues with the application before making changes to make sure you are focusing on the right things.
-
-1. _list structured logs_; use this tool to get details about structured logs.
-2. _list console logs_; use this tool to get details about console logs.
-3. _list traces_; use this tool to get details about traces.
-4. _list trace structured logs_; use this tool to get logs related to a trace
-
-## Official documentation
-
-IMPORTANT! Always prefer official documentation when available. The following sites contain the official documentation for Aspire and related components
-
-1. https://aspire.dev
-2. https://learn.microsoft.com/dotnet/aspire
-3. https://nuget.org (for specific integration package details)

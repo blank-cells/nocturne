@@ -52,8 +52,9 @@ public class TenantController : ControllerBase
         [FromBody] CreateTenantRequest request, CancellationToken ct)
     {
         var authContext = HttpContext.Items["AuthContext"] as AuthContext;
-        var tenant = await _tenantService.CreateAsync(
-            request.Slug, request.DisplayName, authContext!.SubjectId!.Value, request.ApiSecret, ct);
+        var tenant = authContext?.SubjectId is { } creatorId
+            ? await _tenantService.CreateAsync(request.Slug, request.DisplayName, creatorId, request.ApiSecret, ct)
+            : await _tenantService.CreateWithoutOwnerAsync(request.Slug, request.DisplayName, request.ApiSecret, ct);
         return CreatedAtAction(nameof(GetById), new { id = tenant.Id }, tenant);
     }
 

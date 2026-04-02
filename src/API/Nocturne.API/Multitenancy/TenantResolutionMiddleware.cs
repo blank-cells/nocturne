@@ -30,15 +30,37 @@ public class TenantResolutionMiddleware
         _cache = cache;
     }
 
+    /// <summary>
+    /// Paths that operate across all tenants and don't require a resolved tenant context.
+    /// These are allowed through even when no matching tenant is found.
+    /// </summary>
+    private static readonly string[] TenantlessAllowedPaths =
+    [
+        "/api/v4/me/tenants/validate-slug",
+        "/api/admin/tenants/validate-slug",
+        "/api/metadata",
+    ];
+
     public async Task InvokeAsync(HttpContext context)
     {
         var tenantAccessor = context.RequestServices.GetRequiredService<ITenantAccessor>();
-        var slug = ExtractSubdomain(context.Request.Host.Host);
+        // Check X-Forwarded-Host first (set by reverse proxies), then fall back to Host
+        var host = context.Request.Headers["X-Forwarded-Host"].FirstOrDefault()?.Split(':')[0]
+                   ?? context.Request.Host.Host;
+        var slug = ExtractSubdomain(host);
 
         var tenantContext = await ResolveTenantAsync(context.RequestServices, slug);
 
         if (tenantContext == null)
         {
+            // Allow tenantless paths through without a resolved tenant
+            var path = context.Request.Path.Value ?? "";
+            if (TenantlessAllowedPaths.Any(p => path.Equals(p, StringComparison.OrdinalIgnoreCase)))
+            {
+                await _next(context);
+                return;
+            }
+
             _logger.LogWarning("Tenant not found for slug '{Slug}'", slug);
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
