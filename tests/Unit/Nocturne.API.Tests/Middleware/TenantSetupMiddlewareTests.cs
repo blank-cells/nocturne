@@ -45,6 +45,19 @@ public class TenantSetupMiddlewareTests : IDisposable
         _connection.Dispose();
     }
 
+    private (TenantSetupMiddleware middleware, DefaultHttpContext context) Build(
+        string path = "/api/status",
+        Action? onNext = null)
+    {
+        var ctx = new DefaultHttpContext();
+        ctx.Request.Path = path;
+        ctx.Response.Body = new MemoryStream();
+        var mw = new TenantSetupMiddleware(
+            _ => { onNext?.Invoke(); return Task.CompletedTask; },
+            NullLogger<TenantSetupMiddleware>.Instance);
+        return (mw, ctx);
+    }
+
     [Fact]
     public async Task WhenTenantHasNoCredentials_Returns503WithSetupRequired()
     {
@@ -85,13 +98,7 @@ public class TenantSetupMiddlewareTests : IDisposable
         await _dbContext.SaveChangesAsync();
 
         var nextCalled = false;
-        var mw = new TenantSetupMiddleware(
-            async _ => { nextCalled = true; await Task.CompletedTask; },
-            NullLogger<TenantSetupMiddleware>.Instance);
-
-        var ctx = new DefaultHttpContext();
-        ctx.Request.Path = "/api/status";
-        ctx.Response.Body = new MemoryStream();
+        var (mw, ctx) = Build(onNext: () => nextCalled = true);
 
         // Act
         await mw.InvokeAsync(ctx, _tenantAccessor.Object, _dbContext);
@@ -113,19 +120,14 @@ public class TenantSetupMiddlewareTests : IDisposable
     {
         // Arrange — no credentials
         var nextCalled = false;
-        var mw = new TenantSetupMiddleware(
-            async _ => { nextCalled = true; await Task.CompletedTask; },
-            NullLogger<TenantSetupMiddleware>.Instance);
-
-        var ctx = new DefaultHttpContext();
-        ctx.Request.Path = path;
-        ctx.Response.Body = new MemoryStream();
+        var (mw, ctx) = Build(path: path, onNext: () => nextCalled = true);
 
         // Act
         await mw.InvokeAsync(ctx, _tenantAccessor.Object, _dbContext);
 
         // Assert
         nextCalled.Should().BeTrue();
+        ctx.Response.StatusCode.Should().NotBe(503);
     }
 
     [Fact]
@@ -134,13 +136,7 @@ public class TenantSetupMiddlewareTests : IDisposable
         // Arrange — unresolved tenant
         _tenantAccessor.Setup(t => t.IsResolved).Returns(false);
         var nextCalled = false;
-        var mw = new TenantSetupMiddleware(
-            async _ => { nextCalled = true; await Task.CompletedTask; },
-            NullLogger<TenantSetupMiddleware>.Instance);
-
-        var ctx = new DefaultHttpContext();
-        ctx.Request.Path = "/api/status";
-        ctx.Response.Body = new MemoryStream();
+        var (mw, ctx) = Build(onNext: () => nextCalled = true);
 
         // Act
         await mw.InvokeAsync(ctx, _tenantAccessor.Object, _dbContext);
