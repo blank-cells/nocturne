@@ -293,7 +293,7 @@ namespace Nocturne.Aspire.SourceGenerators
             sb.AppendLine($"        public static IDistributedApplicationBuilder {methodName}(");
             sb.AppendLine("            this IDistributedApplicationBuilder builder,");
             sb.AppendLine("            IResourceBuilder<ProjectResource> api,");
-            sb.AppendLine("            IResourceBuilder<ParameterResource> apiSecret)");
+            sb.AppendLine("            IResourceBuilder<ParameterResource> instanceKey)");
             sb.AppendLine("        {");
             sb.AppendLine(
                 "            var connectors = builder.Configuration.GetSection(\"Parameters:Connectors\");"
@@ -370,7 +370,7 @@ namespace Nocturne.Aspire.SourceGenerators
             sb.AppendLine(
                 "                .WithEnvironment(\"NocturneApiUrl\", api.GetEndpoint(\"api\"))"
             );
-            sb.AppendLine("                .WithEnvironment(\"ApiSecret\", apiSecret)");
+            sb.AppendLine("                .WithEnvironment(\"INSTANCE_KEY\", instanceKey)");
             sb.AppendLine("                .WaitFor(api)");
             sb.AppendLine("                .WithReference(api);");
 

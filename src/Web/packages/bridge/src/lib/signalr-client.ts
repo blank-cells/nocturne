@@ -14,7 +14,7 @@ interface SignalRConfig {
   reconnectAttempts: number;
   reconnectDelay: number;
   maxReconnectDelay: number;
-  apiSecret: string;
+  instanceKey: string;
 }
 
 class SignalRClient {
@@ -29,7 +29,7 @@ class SignalRClient {
   private hubUrl: string;
   private alarmHubUrl?: string;
   private configHubUrl?: string;
-  private apiSecret: string;
+  private instanceKey: string;
   private isConnecting: boolean = false;
 
   constructor(messageHandler: MessageTranslator, config: SignalRConfig) {
@@ -40,7 +40,7 @@ class SignalRClient {
     this.maxReconnectAttempts = config.reconnectAttempts;
     this.reconnectDelay = config.reconnectDelay;
     this.maxReconnectDelay = config.maxReconnectDelay;
-    this.apiSecret = config.apiSecret;
+    this.instanceKey = config.instanceKey;
   }
 
   async connect(): Promise<void> {
@@ -72,11 +72,11 @@ class SignalRClient {
       }
 
       if (this.configHubUrl) {
-        const secretHash = createHash("sha1")
-          .update(this.apiSecret)
+        const keyHash = createHash("sha1")
+          .update(this.instanceKey)
           .digest("hex");
         this.configConnection = this.buildConnection(this.configHubUrl, {
-          headers: { "api-secret": secretHash },
+          headers: { "X-Instance-Key": keyHash },
         });
         this.setupConfigEventHandlers();
 
@@ -269,14 +269,14 @@ class SignalRClient {
 
   private async authenticateWithDataHub(): Promise<void> {
     if (!this.dataConnection) return;
-    if (!this.apiSecret) {
+    if (!this.instanceKey) {
       throw new Error(
-        "API_SECRET is not configured for the websocket bridge",
+        "INSTANCE_KEY is not configured for the websocket bridge",
       );
     }
     try {
       const secretHash = createHash("sha1")
-        .update(this.apiSecret)
+        .update(this.instanceKey)
         .digest("hex")
         .toLowerCase();
 
@@ -328,15 +328,15 @@ class SignalRClient {
 
   private async subscribeToAlarmHub(): Promise<void> {
     if (!this.alarmConnection) return;
-    if (!this.apiSecret) {
+    if (!this.instanceKey) {
       throw new Error(
-        "API_SECRET is not configured for the websocket bridge",
+        "INSTANCE_KEY is not configured for the websocket bridge",
       );
     }
 
     try {
       const secretHash = createHash("sha1")
-        .update(this.apiSecret)
+        .update(this.instanceKey)
         .digest("hex")
         .toLowerCase();
 

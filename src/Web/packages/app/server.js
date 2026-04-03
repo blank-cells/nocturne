@@ -8,7 +8,7 @@ const API_URL = process.env.NOCTURNE_API_URL || process.env.PUBLIC_API_URL || 'h
 const SIGNALR_HUB_URL = `${API_URL}/hubs/data`;
 const SIGNALR_ALARM_HUB_URL = `${API_URL}/hubs/alarms`;
 const SIGNALR_CONFIG_HUB_URL = `${API_URL}/hubs/config`;
-const API_SECRET = process.env.API_SECRET || '';
+const INSTANCE_KEY = process.env.INSTANCE_KEY || '';
 
 async function start() {
   // Create HTTP server
@@ -34,7 +34,7 @@ async function start() {
         pingTimeout: parseInt(process.env.PUBLIC_WEBSOCKET_PING_TIMEOUT || '60000'),
         pingInterval: parseInt(process.env.PUBLIC_WEBSOCKET_PING_INTERVAL || '25000'),
       },
-      apiSecret: API_SECRET,
+      instanceKey: INSTANCE_KEY,
     });
 
     console.log('✓ WebSocket bridge initialized successfully');

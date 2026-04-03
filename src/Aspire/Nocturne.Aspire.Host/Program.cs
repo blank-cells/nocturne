@@ -175,11 +175,11 @@ class Program
             );
         }
 
-        // Add api-secret parameter for authentication (needed by connectors)
-        var apiSecret = builder.AddParameter(ServiceNames.Parameters.ApiSecret, secret: true);
+        // Add instance key parameter (needed for JWT signing, encryption, and connectors)
+        var instanceKey = builder.AddParameter(ServiceNames.Parameters.InstanceKey, secret: true);
 
-        // Connectors now run inside the API and need the api-secret for secret encryption
-        api.WithEnvironment(ServiceNames.ConfigKeys.ApiSecret, apiSecret);
+        // Connectors run inside the API and need the instance key for secret encryption
+        api.WithEnvironment(ServiceNames.ConfigKeys.InstanceKey, instanceKey);
 
         // Connectors now run inside the API (single executable)
 
@@ -236,7 +236,7 @@ class Program
                 .WithReference(api)
                 .WithEnvironment("PUBLIC_API_URL", api.GetEndpoint("api"))
                 .WithEnvironment("NOCTURNE_API_URL", api.GetEndpoint("api"))
-                .WithEnvironment(ServiceNames.ConfigKeys.ApiSecret, apiSecret)
+                .WithEnvironment(ServiceNames.ConfigKeys.InstanceKey, instanceKey)
                 .WithEnvironment(
                     "PUBLIC_WEBSOCKET_RECONNECT_ATTEMPTS",
                     builder.Configuration["WebSocket:ReconnectAttempts"] ?? "5"
@@ -310,7 +310,7 @@ class Program
 
             ConfigureWebEnvironment(viteWeb);
             bridge.WithParentRelationship(viteWeb);
-            apiSecret.WithParentRelationship(viteWeb);
+            instanceKey.WithParentRelationship(viteWeb);
             web = viteWeb;
         }
         else
@@ -323,7 +323,7 @@ class Program
                 .WithRemoteImageTag("latest");
 
             ConfigureWebEnvironment(dockerWeb);
-            apiSecret.WithParentRelationship(dockerWeb);
+            instanceKey.WithParentRelationship(dockerWeb);
             web = dockerWeb;
         }
 

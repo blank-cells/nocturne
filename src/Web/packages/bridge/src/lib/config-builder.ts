@@ -47,6 +47,6 @@ export function buildConfig(
           ? "json"
           : "simple"),
     },
-    apiSecret: userConfig.apiSecret || process.env.API_SECRET || "",
+    instanceKey: userConfig.instanceKey || process.env.INSTANCE_KEY || "",
   };
 }

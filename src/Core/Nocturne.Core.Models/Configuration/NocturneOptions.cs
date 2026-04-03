@@ -90,7 +90,7 @@ public class JwtOptions
     public const string SectionName = "Jwt";
 
     /// <summary>
-    /// Secret key for signing JWT tokens. Derived automatically from api-secret
+    /// Secret key for signing JWT tokens. Derived automatically from instance key
     /// via PostConfigure if not explicitly set.
     /// </summary>
     public string SecretKey { get; set; } = string.Empty;
@@ -334,9 +334,9 @@ public class ParametersOptions
     public const string SectionName = "Parameters";
 
     /// <summary>
-    /// API secret for authentication.
+    /// Instance key for JWT signing and encryption.
     /// </summary>
-    public string ApiSecret { get; set; } = string.Empty;
+    public string InstanceKey { get; set; } = string.Empty;
 
     /// <summary>
     /// SignalR hub URL for real-time communication.

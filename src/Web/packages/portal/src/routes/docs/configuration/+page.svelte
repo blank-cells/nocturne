@@ -35,8 +35,8 @@
             </thead>
             <tbody class="text-muted-foreground">
                 <tr class="border-b border-border/50">
-                    <td class="py-2 pr-4 font-mono text-xs">API_SECRET</td>
-                    <td class="py-2">Your API secret for authentication</td>
+                    <td class="py-2 pr-4 font-mono text-xs">INSTANCE_KEY</td>
+                    <td class="py-2">Instance key for JWT signing, encryption, and service authentication</td>
                 </tr>
                 <tr class="border-b border-border/50">
                     <td class="py-2 pr-4 font-mono text-xs">DATABASE_URL</td>

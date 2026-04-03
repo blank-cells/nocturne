@@ -12,6 +12,7 @@ import {
   AlertCustomSoundsClient,
   AlexaClient,
   AnalyticsClient,
+  ApiSecretClient,
   ApsSnapshotClient,
   AuthenticationClient,
   AuthorizationClient,
@@ -111,6 +112,7 @@ export class ApiClient {
   public readonly alertSounds: AlertCustomSoundsClient;
   public readonly alexa: AlexaClient;
   public readonly analytics: AnalyticsClient;
+  public readonly apiSecret: ApiSecretClient;
   public readonly aPSSnapshots: ApsSnapshotClient;
   public readonly authentication: AuthenticationClient;
   public readonly authorization: AuthorizationClient;
@@ -210,6 +212,7 @@ export class ApiClient {
     this.alertSounds = new AlertCustomSoundsClient(apiBaseUrl, http);
     this.alexa = new AlexaClient(apiBaseUrl, http);
     this.analytics = new AnalyticsClient(apiBaseUrl, http);
+    this.apiSecret = new ApiSecretClient(apiBaseUrl, http);
     this.aPSSnapshots = new ApsSnapshotClient(apiBaseUrl, http);
     this.authentication = new AuthenticationClient(apiBaseUrl, http);
     this.authorization = new AuthorizationClient(apiBaseUrl, http);

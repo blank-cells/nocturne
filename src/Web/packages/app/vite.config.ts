@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => {
           const SIGNALR_HUB_URL = `${API_URL}/hubs/data`;
           const SIGNALR_ALARM_HUB_URL = `${API_URL}/hubs/alarms`;
           const SIGNALR_CONFIG_HUB_URL = `${API_URL}/hubs/config`;
-          const API_SECRET = env.API_SECRET || "";
+          const INSTANCE_KEY = env.INSTANCE_KEY || "";
 
           // Ensure the HTTP server is available before initializing the bridge
           if (!server.httpServer) {
@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
                 credentials: true,
               },
             },
-            apiSecret: API_SECRET,
+            instanceKey: INSTANCE_KEY,
           })
             .then((bridge) => {
               console.log("✓ WebSocket bridge initialized successfully");

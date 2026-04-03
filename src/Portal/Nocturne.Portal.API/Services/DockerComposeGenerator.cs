@@ -438,7 +438,7 @@ public class DockerComposeGenerator
         }
 
         // API Secret - generate if not provided
-        values["API_SECRET"] = GenerateSecurePassword();
+        values["INSTANCE_KEY"] = GenerateSecurePassword();
 
         // Connector configuration - keys are already env var names from frontend
         foreach (var connector in request.Connectors)

@@ -47,7 +47,7 @@ public class TenantController : ControllerBase
 
     [HttpPost]
     [RemoteCommand(Invalidates = ["GetAll"])]
-    [ProducesResponseType(typeof(TenantDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(TenantCreatedDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create(
         [FromBody] CreateTenantRequest request, CancellationToken ct)
     {

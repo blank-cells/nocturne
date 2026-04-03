@@ -24,7 +24,7 @@ export interface BridgeConfig {
     level?: string;
     format?: string;
   };
-  apiSecret: string;
+  instanceKey: string;
 }
 
 export interface CompleteBridgeConfig {
@@ -50,7 +50,7 @@ export interface CompleteBridgeConfig {
     level: string;
     format: string;
   };
-  apiSecret: string;
+  instanceKey: string;
 }
 
 export interface BridgeInstance {

@@ -62,7 +62,7 @@ public class DataHub : TenantAwareHub
                     var configuration = Context
                         .GetHttpContext()
                         ?.RequestServices.GetRequiredService<IConfiguration>();
-                    var configuredSecret = configuration?["Parameters:api-secret"];
+                    var configuredSecret = configuration?["Parameters:instance-key"];
 
                     if (!string.IsNullOrEmpty(configuredSecret))
                     {

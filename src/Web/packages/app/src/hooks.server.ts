@@ -34,12 +34,12 @@ function getApiBaseUrl(): string | null {
 }
 
 /**
- * Helper to get the hashed API secret for authentication
+ * Helper to get the hashed instance key for service authentication
  */
-function getHashedApiSecret(): string | null {
-  const apiSecret = env.API_SECRET;
-  return apiSecret
-    ? createHash("sha1").update(apiSecret).digest("hex").toLowerCase()
+function getHashedInstanceKey(): string | null {
+  const instanceKey = env.INSTANCE_KEY;
+  return instanceKey
+    ? createHash("sha1").update(instanceKey).digest("hex").toLowerCase()
     : null;
 }
 
@@ -52,7 +52,7 @@ function createServerApiClient(
   options?: {
     accessToken?: string;
     refreshToken?: string;
-    hashedSecret?: string | null;
+    hashedInstanceKey?: string | null;
     extraHeaders?: Record<string, string>;
   }
 ): ApiClient {
@@ -60,9 +60,8 @@ function createServerApiClient(
     fetch: async (url: RequestInfo, init?: RequestInit): Promise<Response> => {
       const headers = new Headers(init?.headers);
 
-      // Add the hashed API secret as authentication
-      if (options?.hashedSecret) {
-        headers.set("api-secret", options.hashedSecret);
+      if (options?.hashedInstanceKey) {
+        headers.set("X-Instance-Key", options.hashedInstanceKey);
       }
 
       // Forward extra headers (e.g., X-Acting-As for follower context)
@@ -124,7 +123,7 @@ const authHandle: Handle = async ({ event, resolve }) => {
     const apiClient = createServerApiClient(apiBaseUrl, fetch, {
       accessToken,
       refreshToken,
-      hashedSecret: getHashedApiSecret(),
+      hashedInstanceKey: getHashedInstanceKey(),
       extraHeaders: hostHeader ? { "X-Forwarded-Host": hostHeader } : undefined,
     });
 
@@ -149,8 +148,8 @@ const authHandle: Handle = async ({ event, resolve }) => {
       try {
         const permUrl = new URL("/api/v4/me/permissions", apiBaseUrl);
         const permHeaders = new Headers();
-        if (getHashedApiSecret()) {
-          permHeaders.set("api-secret", getHashedApiSecret()!);
+        if (getHashedInstanceKey()) {
+          permHeaders.set("X-Instance-Key", getHashedInstanceKey()!);
         }
         const permCookies: string[] = [];
         if (accessToken) permCookies.push(`${AUTH_COOKIE_NAMES.accessToken}=${accessToken}`);
@@ -203,7 +202,7 @@ const siteSecurityHandle: Handle = async ({ event, resolve }) => {
     if (!event.locals.siteSecurityChecked) {
       const hostHeader = event.request.headers.get("host");
       const apiClient = createServerApiClient(apiBaseUrl, fetch, {
-        hashedSecret: getHashedApiSecret(),
+        hashedInstanceKey: getHashedInstanceKey(),
         extraHeaders: hostHeader ? { "X-Forwarded-Host": hostHeader } : undefined,
       });
 
@@ -277,7 +276,7 @@ const proxyHandle: Handle = async ({ event, resolve }) => {
       );
     }
 
-    const hashedSecret = getHashedApiSecret();
+    const hashedInstanceKey = getHashedInstanceKey();
 
     // Construct the target URL
     const targetUrl = new URL(event.url.pathname + event.url.search, apiBaseUrl);
@@ -289,8 +288,8 @@ const proxyHandle: Handle = async ({ event, resolve }) => {
     if (originalHost) {
       headers.set("X-Forwarded-Host", originalHost);
     }
-    if (hashedSecret) {
-      headers.set("api-secret", hashedSecret);
+    if (hashedInstanceKey) {
+      headers.set("X-Instance-Key", hashedInstanceKey);
     }
 
     // Forward both access and refresh tokens for authentication and token refresh
@@ -356,7 +355,7 @@ const apiClientHandle: Handle = async ({ event, resolve }) => {
   event.locals.apiClient = createServerApiClient(apiBaseUrl, event.fetch, {
     accessToken,
     refreshToken,
-    hashedSecret: getHashedApiSecret(),
+    hashedInstanceKey: getHashedInstanceKey(),
     extraHeaders,
   });
 

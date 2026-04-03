@@ -30,7 +30,7 @@
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       HTTPS_PORTS: "\${NOCTURNE_API_PORT}"
       ConnectionStrings__nocturne-postgres: "Host=nocturne-postgres-server;Port=5432;Username=\${POSTGRES_USERNAME};Password=\${POSTGRES_PASSWORD};Database=nocturne"
-      API_SECRET: "\${API_SECRET}"
+      INSTANCE_KEY: "\${INSTANCE_KEY}"
     ports:
       - "\${NOCTURNE_API_PORT}:\${NOCTURNE_API_PORT}"
     depends_on:
@@ -83,7 +83,7 @@ volumes:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       HTTPS_PORTS: "\${NOCTURNE_API_PORT}"
       ConnectionStrings__nocturne-postgres: "Host=nocturne-postgres-server;Port=5432;Username=\${POSTGRES_USERNAME};Password=\${POSTGRES_PASSWORD};Database=nocturne"
-      API_SECRET: "\${API_SECRET}"
+      INSTANCE_KEY: "\${INSTANCE_KEY}"
       DemoService__Enabled: "false"
     ports:
       - "\${NOCTURNE_API_PORT}:\${NOCTURNE_API_PORT}"
@@ -101,7 +101,7 @@ volumes:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       HTTP_PORTS: "\${DEXCOM_CONNECTOR_PORT}"
       NocturneApiUrl: "https://nocturne-api:\${NOCTURNE_API_PORT}"
-      ApiSecret: "\${API_SECRET}"
+      INSTANCE_KEY: "\${INSTANCE_KEY}"
       CONNECT_DEXCOM_USERNAME: "\${DEXCOM_USERNAME}"
       CONNECT_DEXCOM_PASSWORD: "\${DEXCOM_PASSWORD}"
       CONNECT_DEXCOM_SERVER: "\${DEXCOM_SERVER}"
@@ -122,7 +122,7 @@ volumes:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       HTTP_PORTS: "\${FREESTYLE_CONNECTOR_PORT}"
       NocturneApiUrl: "https://nocturne-api:\${NOCTURNE_API_PORT}"
-      ApiSecret: "\${API_SECRET}"
+      INSTANCE_KEY: "\${INSTANCE_KEY}"
       CONNECT_LIBRE_USERNAME: "\${LIBRELINKUP_USERNAME}"
       CONNECT_LIBRE_PASSWORD: "\${LIBRELINKUP_PASSWORD}"
       CONNECT_LIBRE_REGION: "\${LIBRELINKUP_REGION}"
@@ -158,7 +158,7 @@ volumes:
     const envTemplate = `# Core settings
 POSTGRES_USERNAME=nocturne
 POSTGRES_PASSWORD=change-me-to-a-secure-password
-API_SECRET=change-me-min-12-characters
+INSTANCE_KEY=change-me-min-12-characters
 NOCTURNE_API_PORT=8443
 NOCTURNE_API_IMAGE=ghcr.io/nightscout/nocturne-api:latest
 

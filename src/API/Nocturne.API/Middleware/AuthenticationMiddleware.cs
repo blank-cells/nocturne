@@ -124,8 +124,8 @@ public class AuthenticationMiddleware
         var resolvedAuth = context.Items["AuthContext"] as AuthContext;
         if (resolvedAuth is { IsAuthenticated: true, SubjectId: not null, TenantId: not null })
         {
-            // Skip membership check for ApiSecret auth (grants admin on the resolved tenant)
-            if (resolvedAuth.AuthType != AuthType.ApiSecret)
+            // Skip membership check for ApiSecret and InstanceKey auth (grants admin on the resolved tenant)
+            if (resolvedAuth.AuthType is not (AuthType.ApiSecret or AuthType.InstanceKey))
             {
                 var tenantMemberService = context.RequestServices.GetRequiredService<ITenantMemberService>();
                 var isMember = await tenantMemberService.IsMemberAsync(
@@ -237,6 +237,7 @@ public class AuthenticationMiddleware
         {
             AuthType.None => AuthenticationType.None,
             AuthType.ApiSecret => AuthenticationType.ApiSecret,
+            AuthType.InstanceKey => AuthenticationType.ApiSecret,
             AuthType.LegacyJwt => AuthenticationType.JwtToken,
             AuthType.LegacyAccessToken => AuthenticationType.JwtToken,
             AuthType.OidcToken => AuthenticationType.JwtToken,

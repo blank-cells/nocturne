@@ -75,7 +75,7 @@ public static class ServiceNames
         public const string PushoverUserKey = "pushover-user-key";
 
         // Authentication parameters
-        public const string ApiSecret = "api-secret";
+        public const string InstanceKey = "instance-key";
     }
 
     /// <summary>
@@ -109,7 +109,7 @@ public static class ServiceNames
     {
         // Environment variables
         public const string NocturneInteractive = "NOCTURNE_INTERACTIVE";
-        public const string ApiSecret = "API_SECRET";
+        public const string InstanceKey = "INSTANCE_KEY";
         public const string JwtSecret = "JWT_SECRET";
         public const string NightscoutTargetUrl = "NIGHTSCOUT_TARGET_URL";
         public const string PushoverApiTokenEnv = "PUSHOVER_API_TOKEN";
@@ -189,6 +189,6 @@ public static class ServiceNames
         public const string DefaultOtlpEndpoint = "http://localhost:4317";
 
         // Authentication defaults
-        public const string DefaultApiSecret = "nocturne_default_api_secret";
+        public const string DefaultInstanceKey = "nocturne_default_instance_key";
     }
 }

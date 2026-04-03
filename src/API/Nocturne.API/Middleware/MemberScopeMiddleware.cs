@@ -37,8 +37,8 @@ public class MemberScopeMiddleware
             return;
         }
 
-        // ApiSecret auth grants superuser on the resolved tenant — no membership lookup needed
-        if (authContext.AuthType == AuthType.ApiSecret)
+        // ApiSecret and InstanceKey auth grant superuser on the resolved tenant — no membership lookup needed
+        if (authContext.AuthType is AuthType.ApiSecret or AuthType.InstanceKey)
         {
             var superuserScopes = new HashSet<string> { "*" };
             context.Items["GrantedScopes"] = (IReadOnlySet<string>)superuserScopes;

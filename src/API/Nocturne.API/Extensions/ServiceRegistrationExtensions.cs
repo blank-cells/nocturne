@@ -128,10 +128,10 @@ public static class ServiceRegistrationExtensions
             if (string.IsNullOrEmpty(options.SecretKey))
             {
                 options.SecretKey =
-                    configuration[$"Parameters:{ServiceNames.Parameters.ApiSecret}"]
-                    ?? configuration[ServiceNames.ConfigKeys.ApiSecret]
+                    configuration[$"Parameters:{ServiceNames.Parameters.InstanceKey}"]
+                    ?? configuration[ServiceNames.ConfigKeys.InstanceKey]
                     ?? throw new InvalidOperationException(
-                        "JWT signing key could not be derived: api-secret is not configured.");
+                        "JWT signing key could not be derived: instance key is not configured.");
             }
         });
         services.Configure<OidcOptions>(configuration.GetSection(OidcOptions.SectionName));
@@ -185,6 +185,7 @@ public static class ServiceRegistrationExtensions
 
         // Auth handlers (executed in priority order, lowest first)
         services.AddSingleton<IAuthHandler, SessionCookieHandler>(); // Priority 50
+        services.AddSingleton<IAuthHandler, InstanceKeyHandler>(); // Priority 55
         services.AddSingleton<IAuthHandler, OidcTokenHandler>(); // Priority 100
         services.AddSingleton<IAuthHandler, DirectGrantTokenHandler>(); // Priority 150
         services.AddSingleton<IAuthHandler, LegacyJwtHandler>(); // Priority 200

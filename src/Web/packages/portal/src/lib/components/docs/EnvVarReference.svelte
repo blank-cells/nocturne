@@ -2,7 +2,7 @@
     const coreVars = [
         { name: "POSTGRES_USERNAME", description: "PostgreSQL database username", example: "nocturne" },
         { name: "POSTGRES_PASSWORD", description: "PostgreSQL database password", example: "your-secure-password" },
-        { name: "API_SECRET", description: "Shared secret for Nightscout API authentication", example: "your-api-secret-min-12-chars" },
+        { name: "INSTANCE_KEY", description: "Instance key for JWT signing, encryption, and service authentication", example: "your-instance-key-min-12-chars" },
         { name: "NOCTURNE_API_PORT", description: "Port for the Nocturne API service", example: "8443" },
         { name: "NOCTURNE_API_IMAGE", description: "Docker image for the Nocturne API", example: "ghcr.io/nightscout/nocturne-api:latest" },
     ];

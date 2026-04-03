@@ -179,11 +179,11 @@ builder.Services.AddConnectorInfrastructure(builder.Configuration);
 builder.Services.AddMigrationServices();
 
 
-// Configure JWT authentication - derive signing key from api-secret
+// Configure JWT authentication - derive signing key from instance key
 var secretKey =
-    builder.Configuration[$"Parameters:{ServiceNames.Parameters.ApiSecret}"]
-    ?? builder.Configuration[ServiceNames.ConfigKeys.ApiSecret]
-    ?? throw new InvalidOperationException("api-secret must be configured for JWT signing.");
+    builder.Configuration[$"Parameters:{ServiceNames.Parameters.InstanceKey}"]
+    ?? builder.Configuration[ServiceNames.ConfigKeys.InstanceKey]
+    ?? throw new InvalidOperationException("Instance key must be configured for JWT signing. Set Parameters:instance-key or INSTANCE_KEY.");
 var key = Encoding.UTF8.GetBytes(secretKey);
 
 builder

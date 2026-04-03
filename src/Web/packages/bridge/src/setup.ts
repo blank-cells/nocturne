@@ -38,7 +38,7 @@ export async function setupBridge(
       reconnectAttempts: config.signalr.reconnectAttempts,
       reconnectDelay: config.signalr.reconnectDelay,
       maxReconnectDelay: config.signalr.maxReconnectDelay,
-      apiSecret: config.apiSecret
+      instanceKey: config.instanceKey
     });
 
     // Start Socket.IO server

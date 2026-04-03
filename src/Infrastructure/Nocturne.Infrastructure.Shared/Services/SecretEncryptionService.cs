@@ -3,14 +3,15 @@ using System.Text;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Nocturne.Core.Constants;
 using Nocturne.Core.Contracts;
 
 namespace Nocturne.Infrastructure.Shared.Services;
 
 /// <summary>
-/// Encrypts and decrypts secrets using AES-256-GCM with a key derived from api-secret.
+/// Encrypts and decrypts secrets using AES-256-GCM with a key derived from the instance key.
 /// The key is derived using PBKDF2-SHA256 with 100,000 iterations.
-/// The salt is derived deterministically from the api-secret via HMAC-SHA256,
+/// The salt is derived deterministically from the instance key via HMAC-SHA256,
 /// ensuring stability across restarts without requiring external persistence.
 /// An explicit salt can still be provided via configuration as an override.
 /// </summary>
@@ -36,25 +37,24 @@ public class SecretEncryptionService : ISecretEncryptionService
     {
         _logger = logger;
 
-        // Get api-secret from configuration (same as used for authentication)
-        var apiSecret =
-            configuration["Parameters:api-secret"] ?? configuration["API_SECRET"] ?? string.Empty;
+        var instanceKey =
+            configuration[$"Parameters:{ServiceNames.Parameters.InstanceKey}"]
+            ?? configuration[ServiceNames.ConfigKeys.InstanceKey]
+            ?? string.Empty;
 
-        if (string.IsNullOrEmpty(apiSecret))
+        if (string.IsNullOrEmpty(instanceKey))
         {
             _logger.LogWarning(
-                "api-secret not configured - secret encryption will not be available"
+                "Instance key not configured - secret encryption will not be available"
             );
             _encryptionKey = null;
             return;
         }
 
-        // Get or derive deterministic salt
-        var salt = GetSalt(configuration, apiSecret);
+        var salt = GetSalt(configuration, instanceKey);
 
-        // Derive encryption key from api-secret using PBKDF2
         _encryptionKey = KeyDerivation.Pbkdf2(
-            password: apiSecret,
+            password: instanceKey,
             salt: salt,
             prf: KeyDerivationPrf.HMACSHA256,
             iterationCount: Iterations,
@@ -66,10 +66,10 @@ public class SecretEncryptionService : ISecretEncryptionService
 
     /// <summary>
     /// Gets the encryption salt. Uses an explicit configuration value if provided,
-    /// otherwise derives a deterministic salt from the api-secret via HMAC-SHA256.
+    /// otherwise derives a deterministic salt from the instance key via HMAC-SHA256.
     /// This ensures the salt is stable across restarts without requiring external persistence.
     /// </summary>
-    private byte[] GetSalt(IConfiguration configuration, string apiSecret)
+    private byte[] GetSalt(IConfiguration configuration, string instanceKey)
     {
         // Allow explicit override via configuration
         var installationSaltBase64 = configuration[SaltConfigKey];
@@ -96,12 +96,9 @@ public class SecretEncryptionService : ISecretEncryptionService
             }
         }
 
-        // Derive a deterministic salt from the api-secret using HMAC-SHA256.
-        // This follows the HKDF pattern: use HMAC with a fixed purpose key to derive
-        // a stable, installation-unique salt without requiring external persistence.
-        var derived = HMACSHA256.HashData(SaltDerivationKey, Encoding.UTF8.GetBytes(apiSecret));
+        var derived = HMACSHA256.HashData(SaltDerivationKey, Encoding.UTF8.GetBytes(instanceKey));
 
-        _logger.LogDebug("Using deterministic encryption salt derived from api-secret");
+        _logger.LogDebug("Using deterministic encryption salt derived from instance key");
         return derived;
     }
 
@@ -114,7 +111,7 @@ public class SecretEncryptionService : ISecretEncryptionService
         if (!IsConfigured)
         {
             throw new InvalidOperationException(
-                "Secret encryption is not configured. Ensure api-secret is set."
+                "Secret encryption is not configured. Ensure instance key is set."
             );
         }
 
@@ -148,7 +145,7 @@ public class SecretEncryptionService : ISecretEncryptionService
         if (!IsConfigured)
         {
             throw new InvalidOperationException(
-                "Secret encryption is not configured. Ensure api-secret is set."
+                "Secret encryption is not configured. Ensure instance key is set."
             );
         }
 

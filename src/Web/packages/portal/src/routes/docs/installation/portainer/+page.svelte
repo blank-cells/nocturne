@@ -72,7 +72,7 @@
 
     <pre class="p-4 rounded-lg bg-muted/50 border border-border/60 text-sm overflow-x-auto mb-4"><code>POSTGRES_USERNAME=nocturne
 POSTGRES_PASSWORD=change-me-to-a-secure-password
-API_SECRET=change-me-min-12-characters
+INSTANCE_KEY=change-me-min-12-characters
 NOCTURNE_API_PORT=8443
 NOCTURNE_API_IMAGE=ghcr.io/nightscout/nocturne-api:latest</code></pre>
 

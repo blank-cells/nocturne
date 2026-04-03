@@ -217,5 +217,10 @@ public enum AuthType
     /// <summary>
     /// Direct grant token (opaque API token with no OAuth client)
     /// </summary>
-    DirectGrant
+    DirectGrant,
+
+    /// <summary>
+    /// Instance key (infrastructure service authentication)
+    /// </summary>
+    InstanceKey
 }
