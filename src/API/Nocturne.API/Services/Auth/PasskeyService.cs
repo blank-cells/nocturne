@@ -22,7 +22,6 @@ public class PasskeyService : IPasskeyService
     private readonly NocturneDbContext _dbContext;
     private readonly IFido2 _fido2;
     private readonly IDataProtector _protector;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly Fido2Configuration _fido2Config;
     private readonly ILogger<PasskeyService> _logger;
 
@@ -30,36 +29,44 @@ public class PasskeyService : IPasskeyService
         NocturneDbContext dbContext,
         IFido2 fido2,
         IDataProtectionProvider dataProtectionProvider,
-        IHttpContextAccessor httpContextAccessor,
         Microsoft.Extensions.Options.IOptions<Fido2Configuration> fido2Options,
         ILogger<PasskeyService> logger)
     {
         _dbContext = dbContext;
         _fido2 = fido2;
         _protector = dataProtectionProvider.CreateProtector("Nocturne.Passkey.Challenge");
-        _httpContextAccessor = httpContextAccessor;
         _fido2Config = fido2Options.Value;
         _logger = logger;
     }
 
     /// <summary>
-    /// Ensures the current request's origin is in the FIDO2 allowed origins set.
-    /// Needed for wildcard subdomain routing behind a reverse proxy in local dev,
-    /// where the origin is dynamic (e.g. http://rhys.localhost:5100).
+    /// Extracts the origin from the WebAuthn clientDataJSON and, if it is a
+    /// subdomain of the configured rpId, adds it to the FIDO2 allowed origins.
+    /// This is required for multi-tenant wildcard subdomains where the browser
+    /// origin (e.g. https://rhys.nocturne.run) isn't known at startup.
     /// </summary>
-    private void EnsureRequestOriginAllowed()
+    private void AllowOriginFromClientData(byte[] clientDataJson)
     {
-        var request = _httpContextAccessor.HttpContext?.Request;
-        if (request == null) return;
-
-        var host = request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? request.Host.Value;
-        var scheme = request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? request.Scheme;
-        var origin = $"{scheme}://{host}";
-
-        if (!_fido2Config.FullyQualifiedOrigins.Contains(origin))
+        try
         {
-            // Origins is a HashSet<string> behind the IReadOnlySet interface
-            ((HashSet<string>)_fido2Config.Origins).Add(origin);
+            using var doc = JsonDocument.Parse(clientDataJson);
+            if (!doc.RootElement.TryGetProperty("origin", out var originProp))
+                return;
+
+            var origin = originProp.GetString();
+            if (string.IsNullOrEmpty(origin) || _fido2Config.FullyQualifiedOrigins.Contains(origin))
+                return;
+
+            var uri = new Uri(origin);
+            var rpId = _fido2Config.ServerDomain;
+            if (uri.Host == rpId || uri.Host.EndsWith($".{rpId}", StringComparison.OrdinalIgnoreCase))
+            {
+                ((HashSet<string>)_fido2Config.Origins).Add(origin);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not extract origin from clientDataJSON");
         }
     }
 
@@ -109,7 +116,7 @@ public class PasskeyService : IPasskeyService
         var attestationResponse = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(attestationResponseJson)
             ?? throw new InvalidOperationException("Failed to deserialize attestation response.");
 
-        EnsureRequestOriginAllowed();
+        AllowOriginFromClientData(attestationResponse.Response.ClientDataJson);
         var credential = await _fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
         {
             AttestationResponse = attestationResponse,
@@ -219,7 +226,7 @@ public class PasskeyService : IPasskeyService
             .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.CredentialId == rawId)
             ?? throw new InvalidOperationException("Credential not found for this tenant.");
 
-        EnsureRequestOriginAllowed();
+        AllowOriginFromClientData(assertionResponse.Response.ClientDataJson);
         var result = await _fido2.MakeAssertionAsync(new MakeAssertionParams
         {
             AssertionResponse = assertionResponse,
