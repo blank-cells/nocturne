@@ -1,7 +1,7 @@
 import type { Tooltip } from "layerchart";
 import { getContext, setContext, type Component, type ComponentProps, type Snippet } from "svelte";
 
-const THEMES = { light: "", dark: ".dark" } as const;
+export const THEMES = { light: "", dark: ".dark" } as const;
 
 export type ChartConfig = {
 	[k in string]: {
@@ -20,7 +20,7 @@ export type TooltipPayload = ExtractSnippetParams<
 >["payload"][number];
 
 // Helper to extract item config from a payload.
-function getPayloadConfigFromPayload(
+export function getPayloadConfigFromPayload(
 	config: ChartConfig,
 	payload: TooltipPayload,
 	key: string
@@ -57,10 +57,10 @@ type ChartContextValue = {
 
 const chartContextKey = Symbol("chart-context");
 
-function setChartContext(value: ChartContextValue) {
+export function setChartContext(value: ChartContextValue) {
 	return setContext(chartContextKey, value);
 }
 
-function useChart() {
+export function useChart() {
 	return getContext<ChartContextValue>(chartContextKey);
 }

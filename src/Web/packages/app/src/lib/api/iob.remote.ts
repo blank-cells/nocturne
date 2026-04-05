@@ -14,7 +14,7 @@ const hourlyIobSchema = z.object({
 /**
  * Get hourly IOB data for charting
  */
-const getHourlyIob = query(hourlyIobSchema, async (props) => {
+export const getHourlyIob = query(hourlyIobSchema, async (props) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 

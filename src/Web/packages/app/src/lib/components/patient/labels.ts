@@ -6,7 +6,7 @@ import {
   InsulinRole,
 } from "$api";
 
-const diabetesTypeLabels: Record<string, string> = {
+export const diabetesTypeLabels: Record<string, string> = {
   [DiabetesType.Type1]: "Type 1",
   [DiabetesType.Type2]: "Type 2",
   [DiabetesType.LADA]: "LADA",
@@ -15,7 +15,7 @@ const diabetesTypeLabels: Record<string, string> = {
   [DiabetesType.Other]: "Other",
 };
 
-const deviceCategoryLabels: Record<string, string> = {
+export const deviceCategoryLabels: Record<string, string> = {
   [DeviceCategory.InsulinPump]: "Insulin Pump",
   [DeviceCategory.CGM]: "CGM",
   [DeviceCategory.GlucoseMeter]: "Glucose Meter",
@@ -24,7 +24,7 @@ const deviceCategoryLabels: Record<string, string> = {
   [DeviceCategory.Uploader]: "Uploader",
 };
 
-const aidAlgorithmLabels: Record<string, string> = {
+export const aidAlgorithmLabels: Record<string, string> = {
   [AidAlgorithm.OpenAps]: "OpenAPS",
   [AidAlgorithm.AndroidAps]: "AndroidAPS",
   [AidAlgorithm.Loop]: "Loop",
@@ -38,7 +38,7 @@ const aidAlgorithmLabels: Record<string, string> = {
   [AidAlgorithm.Unknown]: "Unknown",
 };
 
-const insulinCategoryLabels: Record<string, string> = {
+export const insulinCategoryLabels: Record<string, string> = {
   [InsulinCategory.RapidActing]: "Rapid Acting",
   [InsulinCategory.ShortActing]: "Short Acting",
   [InsulinCategory.IntermediateActing]: "Intermediate Acting",
@@ -47,7 +47,7 @@ const insulinCategoryLabels: Record<string, string> = {
   [InsulinCategory.Premixed]: "Premixed",
 };
 
-const insulinCategoryDescriptions: Record<string, string> = {
+export const insulinCategoryDescriptions: Record<string, string> = {
   [InsulinCategory.RapidActing]: "e.g. Humalog, NovoRapid, Fiasp",
   [InsulinCategory.ShortActing]: "e.g. Humulin R, Actrapid",
   [InsulinCategory.IntermediateActing]: "e.g. Humulin N, Insulatard",
@@ -56,13 +56,13 @@ const insulinCategoryDescriptions: Record<string, string> = {
   [InsulinCategory.Premixed]: "e.g. NovoMix 30, Humalog Mix",
 };
 
-const insulinRoleLabels: Record<string, string> = {
+export const insulinRoleLabels: Record<string, string> = {
   [InsulinRole.Bolus]: "Bolus",
   [InsulinRole.Basal]: "Basal",
   [InsulinRole.Both]: "Both",
 };
 
-const insulinRoleDescriptions: Record<string, string> = {
+export const insulinRoleDescriptions: Record<string, string> = {
   [InsulinRole.Bolus]: "Used for meal and correction boluses",
   [InsulinRole.Basal]: "Used for background insulin coverage",
   [InsulinRole.Both]: "Used for both basal and bolus",

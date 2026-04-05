@@ -73,7 +73,7 @@ async function safeApiCall<T>(
  * Get OIDC provider configuration
  * Returns enabled OIDC providers for external authentication
  */
-const getOidcProviders = query(async () => {
+export const getOidcProviders = query(async () => {
   const result = await safeApiCall(async () => {
     const api = getApiClient();
     const providers = await api.oidc.getProviders();
@@ -248,7 +248,7 @@ export const logoutSession = query(z.string().optional(), async (_providerId) =>
  * Set auth cookies after successful passkey login.
  * Called from the client after the passkey completion endpoint returns tokens.
  */
-const setAuthCookies = command(
+export const setAuthCookies = command(
   z.object({
     accessToken: z.string(),
     refreshToken: z.string().optional(),

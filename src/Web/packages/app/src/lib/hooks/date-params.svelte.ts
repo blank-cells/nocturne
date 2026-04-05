@@ -27,7 +27,7 @@ import { getContext, setContext, untrack } from "svelte";
  * fields from validation results, causing runed's `has()` check to fail and
  * preventing URL updates when setting values.
  */
-const ReportsParamsSchema = z.object({
+export const ReportsParamsSchema = z.object({
   days: z.coerce.number().nullable().default(null),
   from: z.string().nullable().default(null),
   to: z.string().nullable().default(null),
@@ -55,7 +55,7 @@ export type DateRangeInput = {
  * @param defaultDays - The default number of days for this specific report (default: 7)
  * @returns Reactive params object with helper methods
  */
-function useDateParams(defaultDays = 7) {
+export function useDateParams(defaultDays = 7) {
   // showDefaults: true ensures all params are shown in URL, not just non-default ones
   // This is critical because runed by default omits params that match schema defaults
   const params = useSearchParams(ReportsParamsSchema, { showDefaults: true });
@@ -309,7 +309,7 @@ const DATE_PARAMS_CONTEXT_KEY = Symbol("date-params");
  *
  * @param params - The useDateParams instance to share
  */
-function setDateParamsContext(params: ReportsParamsReturn): void {
+export function setDateParamsContext(params: ReportsParamsReturn): void {
   setContext(DATE_PARAMS_CONTEXT_KEY, params);
 }
 
@@ -319,7 +319,7 @@ function setDateParamsContext(params: ReportsParamsReturn): void {
  *
  * @returns The shared useDateParams instance, or undefined if not in context
  */
-function getDateParamsContext(): ReportsParamsReturn | undefined {
+export function getDateParamsContext(): ReportsParamsReturn | undefined {
   return getContext<ReportsParamsReturn | undefined>(DATE_PARAMS_CONTEXT_KEY);
 }
 
@@ -337,7 +337,7 @@ function getDateParamsContext(): ReportsParamsReturn | undefined {
  * @returns The shared useDateParams instance
  * @throws Error if context is not set
  */
-function requireDateParamsContext(reportDefaultDays?: number): ReportsParamsReturn {
+export function requireDateParamsContext(reportDefaultDays?: number): ReportsParamsReturn {
   const params = getDateParamsContext();
   if (!params) {
     throw new Error(

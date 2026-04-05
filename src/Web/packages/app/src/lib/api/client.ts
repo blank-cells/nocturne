@@ -57,6 +57,6 @@ export function getApiClient(): ApiClient {
  * Reset the client-side API client instance Useful for testing or when
  * configuration changes
  */
-function resetApiClient(): void {
+export function resetApiClient(): void {
   clientApiClient = null;
 }

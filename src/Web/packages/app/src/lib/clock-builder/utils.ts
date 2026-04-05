@@ -160,7 +160,7 @@ export function buildStyleString(element: ClockElement, currentBG: number): stri
 /**
  * Format time based on 12h/24h preference
  */
-function formatTime(format: string | undefined, currentTime: Date): string {
+export function formatTime(format: string | undefined, currentTime: Date): string {
   const is24h = format === "24h";
   return currentTime.toLocaleTimeString([], {
     hour: "2-digit",

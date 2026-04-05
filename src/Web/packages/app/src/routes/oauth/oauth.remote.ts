@@ -12,7 +12,7 @@ import { error, invalid, redirect } from "@sveltejs/kit";
 /**
  * Get device code info for the device authorization page
  */
-const getDeviceInfo = query(
+export const getDeviceInfo = query(
   z.object({
     userCode: z.string().min(1, "User code is required"),
   }),
@@ -62,7 +62,7 @@ export const getClientInfo = query(
 /**
  * Approve a device authorization request
  */
-const approveDevice = command(
+export const approveDevice = command(
   z.object({
     userCode: z.string().min(1, "User code is required"),
   }),
@@ -87,7 +87,7 @@ const approveDevice = command(
 /**
  * Deny a device authorization request
  */
-const denyDevice = command(
+export const denyDevice = command(
   z.object({
     userCode: z.string().min(1, "User code is required"),
   }),

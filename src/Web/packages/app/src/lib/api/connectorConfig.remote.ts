@@ -40,7 +40,7 @@ export interface JsonSchema {
 /**
  * Get all connector configuration statuses
  */
-const getAllConnectorStatus = query(async () => {
+export const getAllConnectorStatus = query(async () => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 
@@ -55,7 +55,7 @@ const getAllConnectorStatus = query(async () => {
 /**
  * Get configuration for a specific connector
  */
-const getConnectorConfiguration = query(z.string(), async (connectorName) => {
+export const getConnectorConfiguration = query(z.string(), async (connectorName) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 
@@ -74,7 +74,7 @@ const getConnectorConfiguration = query(z.string(), async (connectorName) => {
 /**
  * Get JSON schema for a connector's configuration
  */
-const getConnectorSchema = query(z.string(), async (connectorName) => {
+export const getConnectorSchema = query(z.string(), async (connectorName) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 
@@ -110,7 +110,7 @@ const getConnectorSchema = query(z.string(), async (connectorName) => {
  * Get effective configuration from a running connector
  * Returns the actual runtime values including those resolved from environment variables
  */
-const getConnectorEffectiveConfig = query(z.string(), async (connectorName) => {
+export const getConnectorEffectiveConfig = query(z.string(), async (connectorName) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 
@@ -136,7 +136,7 @@ const SaveConnectorConfigurationSchema = z.object({
 	configuration: z.record(z.string(), z.unknown()),
 });
 
-const saveConnectorConfiguration = form(
+export const saveConnectorConfiguration = form(
 	"unchecked",
 	async (raw) => {
 		const { connectorName, configuration } = SaveConnectorConfigurationSchema.parse(raw);
@@ -173,7 +173,7 @@ const saveConnectorConfiguration = form(
 /**
  * Save connector secrets
  */
-const saveConnectorSecrets = form(
+export const saveConnectorSecrets = form(
 	z.object({
 		connectorName: z.string(),
 		secrets: z.record(z.string(), z.string()),
@@ -203,7 +203,7 @@ const saveConnectorSecrets = form(
 /**
  * Set connector active state (enable/disable)
  */
-const setConnectorActive = command(
+export const setConnectorActive = command(
 	z.object({
 		connectorName: z.string(),
 		isActive: z.boolean(),
@@ -229,7 +229,7 @@ const setConnectorActive = command(
 /**
  * Delete connector configuration
  */
-const deleteConnectorConfiguration = command(z.string(), async (connectorName) => {
+export const deleteConnectorConfiguration = command(z.string(), async (connectorName) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 

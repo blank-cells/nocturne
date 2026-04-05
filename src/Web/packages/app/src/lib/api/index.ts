@@ -7,7 +7,7 @@ import { browser } from '$app/environment';
  * @param event - The RequestEvent (only needed on server-side)
  * @returns ApiClient instance
  */
-function getUniversalApiClient(event?: RequestEvent) {
+export function getUniversalApiClient(event?: RequestEvent) {
 	if (browser) {
 		// Client-side: use the client utility
 		return getApiClient();

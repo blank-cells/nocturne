@@ -19,7 +19,7 @@ import {
 /**
  * Create a default element of the given type
  */
-function createDefaultElement(type: ClockElementType): ClockElement {
+export function createDefaultElement(type: ClockElementType): ClockElement {
   const info = ELEMENT_INFO[type];
   const element: ClockElement = {
     type,
@@ -73,7 +73,7 @@ function createDefaultElement(type: ClockElementType): ClockElement {
 /**
  * Create a default clock face configuration
  */
-function createDefaultConfig(): ClockFaceConfig {
+export function createDefaultConfig(): ClockFaceConfig {
   return {
     rows: [
       {

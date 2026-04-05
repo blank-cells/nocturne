@@ -5,7 +5,7 @@ export * from './meal-times';
 
 import type { GlycemicThresholds } from "../api";
 
-const DEFAULT_THRESHOLDS: GlycemicThresholds = {
+export const DEFAULT_THRESHOLDS: GlycemicThresholds = {
   low: 55,
   targetBottom: 80,
   targetTop: 140,
@@ -16,7 +16,7 @@ const DEFAULT_THRESHOLDS: GlycemicThresholds = {
   veryHigh: 250,
 };
 
-const chartConfig = {
+export const chartConfig = {
   veryLow: {
     threshold: DEFAULT_THRESHOLDS.veryLow,
     label: "Very Low",

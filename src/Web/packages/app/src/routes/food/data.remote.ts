@@ -154,7 +154,7 @@ export const createQuickPick = command(quickPickRecordSchema.omit({ _id: true })
 /**
  * Update an existing quickpick record
  */
-const updateQuickPick = command(quickPickRecordSchema, async (quickPick) => {
+export const updateQuickPick = command(quickPickRecordSchema, async (quickPick) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 

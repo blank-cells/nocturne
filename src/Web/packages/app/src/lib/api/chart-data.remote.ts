@@ -14,7 +14,7 @@ const chartDataSchema = z.object({
 	intervalMinutes: z.number().optional().default(5),
 });
 
-const getChartData = query(chartDataSchema, async ({ startTime, endTime, intervalMinutes }) => {
+export const getChartData = query(chartDataSchema, async ({ startTime, endTime, intervalMinutes }) => {
 	const { locals } = getRequestEvent();
 	const { apiClient } = locals;
 

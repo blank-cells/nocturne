@@ -44,7 +44,7 @@ class AuthInterceptorState {
 }
 
 // Singleton instance
-const authInterceptorState = new AuthInterceptorState();
+export const authInterceptorState = new AuthInterceptorState();
 
 /**
  * Create an authenticated fetch wrapper that handles 401 responses

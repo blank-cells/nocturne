@@ -16,7 +16,7 @@ import type { Component, ComponentProps, Snippet } from "svelte";
  * {/if}
  * ```
  */
-class RenderComponentConfig<TComponent extends Component> {
+export class RenderComponentConfig<TComponent extends Component> {
 	component: TComponent;
 	props: ComponentProps<TComponent> | Record<string, never>;
 	constructor(
@@ -43,7 +43,7 @@ class RenderComponentConfig<TComponent extends Component> {
  * {/if}
  * ```
  */
-class RenderSnippetConfig<TProps> {
+export class RenderSnippetConfig<TProps> {
 	snippet: Snippet<[TProps]>;
 	params: TProps;
 	constructor(snippet: Snippet<[TProps]>, params: TProps) {
@@ -74,7 +74,7 @@ class RenderSnippetConfig<TProps> {
  * ```
  * @see {@link https://tanstack.com/table/latest/docs/guide/column-defs}
  */
-function renderComponent<
+export function renderComponent<
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	T extends Component<any>,
 	Props extends ComponentProps<T>,
@@ -106,6 +106,6 @@ function renderComponent<
  * ```
  * @see {@link https://tanstack.com/table/latest/docs/guide/column-defs}
  */
-function renderSnippet<TProps>(snippet: Snippet<[TProps]>, params: TProps = {} as TProps) {
+export function renderSnippet<TProps>(snippet: Snippet<[TProps]>, params: TProps = {} as TProps) {
 	return new RenderSnippetConfig(snippet, params);
 }

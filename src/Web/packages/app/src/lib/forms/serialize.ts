@@ -11,7 +11,7 @@
  * - null and undefined values are skipped
  * - Empty strings are included
  */
-function serializeFormData(
+export function serializeFormData(
 	data: Record<string, unknown>,
 	prefix?: string
 ): Array<[name: string, value: string]> {

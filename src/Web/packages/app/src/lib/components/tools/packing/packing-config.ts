@@ -26,7 +26,7 @@ export interface SupplyCategoryConfig {
   items: SupplyItemConfig[];
 }
 
-const categories: SupplyCategoryConfig[] = [
+export const categories: SupplyCategoryConfig[] = [
   {
     id: "insulin",
     label: "Insulin",

@@ -25,7 +25,7 @@ export type ClockElementType =
   | "chart";
 
 // Text-based element types (use unified text rendering)
-const TEXT_ELEMENT_TYPES: string[] = [
+export const TEXT_ELEMENT_TYPES: string[] = [
   "sg",
   "delta",
   "arrow",
