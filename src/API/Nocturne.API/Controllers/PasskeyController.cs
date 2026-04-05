@@ -439,21 +439,43 @@ public class PasskeyController : ControllerBase
     }
 
     /// <summary>
-    /// Returns whether the instance is currently in recovery mode.
-    /// Recovery mode activates when active subjects exist that have no
-    /// passkey credential and no OIDC binding (orphaned after upgrade).
+    /// Returns whether the current tenant is in recovery mode.
+    /// In multi-tenant mode, queries the database for orphaned subjects.
+    /// In single-tenant mode, reads from the global RecoveryModeState.
     /// </summary>
     [HttpGet("recovery-mode-status")]
     [AllowAnonymous]
     [RemoteQuery]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetRecoveryModeStatus([FromServices] RecoveryModeState state)
+    public async Task<IActionResult> GetRecoveryModeStatus([FromServices] RecoveryModeState state)
     {
-        return Ok(new { recoveryMode = state.IsEnabled });
+        bool recoveryMode;
+        if (_tenantAccessor.IsResolved)
+        {
+            var tenantId = _tenantAccessor.TenantId;
+            recoveryMode = await _dbContext.TenantMembers
+                .Where(tm => tm.TenantId == tenantId)
+                .Join(
+                    _dbContext.Subjects.Where(s => s.IsActive && !s.IsSystemSubject),
+                    tm => tm.SubjectId,
+                    s => s.Id,
+                    (tm, s) => s)
+                .Where(s =>
+                    s.OidcSubjectId == null &&
+                    !_dbContext.PasskeyCredentials.IgnoreQueryFilters().Any(p => p.SubjectId == s.Id))
+                .AnyAsync();
+        }
+        else
+        {
+            recoveryMode = state.IsEnabled;
+        }
+
+        return Ok(new { recoveryMode });
     }
 
     /// <summary>
-    /// Returns instance auth status: whether setup is required or recovery mode is active.
+    /// Returns tenant auth status: whether setup is required or recovery mode is active.
+    /// In multi-tenant mode, queries the database. In single-tenant mode, reads global state.
     /// </summary>
     [HttpGet("status")]
     [AllowAnonymous]
@@ -461,14 +483,48 @@ public class PasskeyController : ControllerBase
     [ProducesResponseType(typeof(AuthStatusResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAuthStatus([FromServices] RecoveryModeState state)
     {
-        var tenant = await _dbContext.Tenants
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(t => t.IsDefault);
+        bool setupRequired;
+        bool recoveryMode;
+
+        if (_tenantAccessor.IsResolved)
+        {
+            var hasCredentials = await _dbContext.PasskeyCredentials.AnyAsync();
+            setupRequired = !hasCredentials;
+
+            if (hasCredentials)
+            {
+                var tenantId = _tenantAccessor.TenantId;
+                recoveryMode = await _dbContext.TenantMembers
+                    .Where(tm => tm.TenantId == tenantId)
+                    .Join(
+                        _dbContext.Subjects.Where(s => s.IsActive && !s.IsSystemSubject),
+                        tm => tm.SubjectId,
+                        s => s.Id,
+                        (tm, s) => s)
+                    .Where(s =>
+                        s.OidcSubjectId == null &&
+                        !_dbContext.PasskeyCredentials.IgnoreQueryFilters().Any(p => p.SubjectId == s.Id))
+                    .AnyAsync();
+            }
+            else
+            {
+                recoveryMode = false;
+            }
+        }
+        else
+        {
+            setupRequired = state.IsSetupRequired;
+            recoveryMode = state.IsEnabled;
+        }
+
+        var tenant = _tenantAccessor.IsResolved
+            ? await _dbContext.Tenants.FirstOrDefaultAsync(t => t.Id == _tenantAccessor.TenantId)
+            : await _dbContext.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.IsDefault);
 
         return Ok(new AuthStatusResponse
         {
-            SetupRequired = state.IsSetupRequired,
-            RecoveryMode = state.IsEnabled,
+            SetupRequired = setupRequired,
+            RecoveryMode = recoveryMode,
             AllowAccessRequests = tenant?.AllowAccessRequests ?? false,
         });
     }

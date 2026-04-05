@@ -659,4 +659,79 @@ public class PasskeyControllerTests : IDisposable
     }
 
     #endregion
+
+    #region Multi-Tenant Status Endpoints
+
+    [Fact]
+    public async Task GetRecoveryModeStatus_MultiTenant_QueriesDb()
+    {
+        // Arrange — seed the tenant first (FK requirement)
+        _dbContext.Tenants.Add(new TenantEntity
+        {
+            Id = _tenantId,
+            Slug = "test",
+            DisplayName = "Test",
+            IsDefault = false,
+        });
+
+        // Arrange — orphaned subject is a member of the resolved tenant
+        var orphanedSubjectId = Guid.CreateVersion7();
+        _dbContext.Subjects.Add(new SubjectEntity
+        {
+            Id = orphanedSubjectId,
+            Name = "Orphaned",
+            IsActive = true,
+            IsSystemSubject = false,
+            OidcSubjectId = null,
+        });
+        _dbContext.TenantMembers.Add(new TenantMemberEntity
+        {
+            Id = Guid.CreateVersion7(),
+            TenantId = _tenantId,
+            SubjectId = orphanedSubjectId,
+        });
+        await _dbContext.SaveChangesAsync();
+
+        var state = new RecoveryModeState(); // global state is NOT set
+
+        _tenantAccessor.Setup(t => t.IsResolved).Returns(true);
+
+        // Act
+        var result = await _controller.GetRecoveryModeStatus(state);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var value = okResult.Value;
+        var recoveryMode = value!.GetType().GetProperty("recoveryMode")!.GetValue(value);
+        recoveryMode.Should().Be(true);
+    }
+
+    [Fact]
+    public async Task GetAuthStatus_MultiTenant_QueriesDb()
+    {
+        // Arrange — tenant with no credentials (setup required)
+        var tenant = new TenantEntity
+        {
+            Id = _tenantId,
+            Slug = "test",
+            DisplayName = "Test",
+            IsDefault = false,
+        };
+        _dbContext.Tenants.Add(tenant);
+        await _dbContext.SaveChangesAsync();
+
+        var state = new RecoveryModeState(); // global state is NOT set
+
+        _tenantAccessor.Setup(t => t.IsResolved).Returns(true);
+
+        // Act
+        var result = await _controller.GetAuthStatus(state);
+
+        // Assert
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        var response = Assert.IsType<AuthStatusResponse>(okResult.Value);
+        response.SetupRequired.Should().BeTrue();
+    }
+
+    #endregion
 }
