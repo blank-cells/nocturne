@@ -62,6 +62,13 @@ public class PasskeyService : IPasskeyService
             if (uri.Host == rpId || uri.Host.EndsWith($".{rpId}", StringComparison.OrdinalIgnoreCase))
             {
                 ((HashSet<string>)_fido2Config.Origins).Add(origin);
+
+                // FullyQualifiedOrigins is lazily cached from Origins — adding to
+                // Origins after the cache is built won't update it. Mutate directly.
+                if (_fido2Config.FullyQualifiedOrigins is HashSet<string> fqOrigins)
+                {
+                    fqOrigins.Add(origin);
+                }
             }
         }
         catch (Exception ex)
