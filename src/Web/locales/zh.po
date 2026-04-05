@@ -21773,13 +21773,11 @@ msgstr ""
 msgid "Continue"
 msgstr ""
 
-#: src/routes/auth/recovery/+page.svelte
-msgid "Passkey registered. Recovery mode will be deactivated on next restart."
-msgstr ""
+#~ msgid "Passkey registered. Recovery mode will be deactivated on next restart."
+#~ msgstr ""
 
-#: src/routes/auth/recovery/+page.svelte
-msgid "To disable recovery mode, restart the application after registering a passkey."
-msgstr ""
+#~ msgid "To disable recovery mode, restart the application after registering a passkey."
+#~ msgstr ""
 
 #: src/routes/settings/setup/profile/+page.svelte
 msgid "Search timezones..."
@@ -23260,4 +23258,12 @@ msgstr ""
 
 #: src/routes/settings/nightscout-transition/+page.svelte
 msgid "Go to Connector Settings <0/>"
+msgstr ""
+
+#: src/routes/auth/recovery/+page.svelte
+msgid "Passkey registered successfully. Recovery mode has been deactivated."
+msgstr ""
+
+#: src/routes/auth/recovery/+page.svelte
+msgid "Register a passkey to restore normal access."
 msgstr ""

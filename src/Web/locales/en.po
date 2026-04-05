@@ -17016,9 +17016,8 @@ msgstr "Optional. Updates your display name if provided."
 msgid "Continue"
 msgstr "Continue"
 
-#: src/routes/auth/recovery/+page.svelte
-msgid "Passkey registered. Recovery mode will be deactivated on next restart."
-msgstr "Passkey registered. Recovery mode will be deactivated on next restart."
+#~ msgid "Passkey registered. Recovery mode will be deactivated on next restart."
+#~ msgstr "Passkey registered. Recovery mode will be deactivated on next restart."
 
 #: src/routes/auth/recovery/+page.svelte
 msgid "Register a passkey to restore normal access."
@@ -18606,3 +18605,7 @@ msgstr "Connect to Nightscout"
 #: src/routes/settings/setup/migrate/nightscout/+page.svelte
 msgid "Enter your Nightscout URL and API secret to begin migrating your data"
 msgstr "Enter your Nightscout URL and API secret to begin migrating your data"
+
+#: src/routes/auth/recovery/+page.svelte
+msgid "Passkey registered successfully. Recovery mode has been deactivated."
+msgstr "Passkey registered successfully. Recovery mode has been deactivated."
