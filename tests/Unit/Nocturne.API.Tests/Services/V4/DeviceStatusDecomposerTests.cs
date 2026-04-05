@@ -69,10 +69,10 @@ public class DeviceStatusDecomposerTests : IDisposable
                     Timestamp = "2023-11-14T12:00:00Z",
                     PredBGs = new OpenApsPredBGs
                     {
-                        IOB = new List<double> { 120, 115, 110, 105, 100 },
-                        ZT = new List<double> { 120, 118, 115 },
-                        COB = new List<double> { 120, 125, 130, 125, 120, 110 },
-                        UAM = new List<double> { 120, 130, 135, 130 }
+                        IOB = new List<double?> { 120, 115, 110, 105, 100 },
+                        ZT = new List<double?> { 120, 118, 115 },
+                        COB = new List<double?> { 120, 125, 130, 125, 120, 110 },
+                        UAM = new List<double?> { 120, 130, 135, 130 }
                     }
                 },
                 Enacted = new OpenApsEnacted
@@ -87,7 +87,7 @@ public class DeviceStatusDecomposerTests : IDisposable
                     Timestamp = "2023-11-14T12:00:00Z",
                     PredBGs = new OpenApsPredBGs
                     {
-                        IOB = new List<double> { 120, 115, 110, 105, 100 },
+                        IOB = new List<double?> { 120, 115, 110, 105, 100 },
                     }
                 }
             }
@@ -467,7 +467,7 @@ public class DeviceStatusDecomposerTests : IDisposable
                     Timestamp = "2023-11-14T12:00:00Z",
                     PredBGs = new OpenApsPredBGs
                     {
-                        IOB = new List<double> { 130, 125, 120, 115, 110 }
+                        IOB = new List<double?> { 130, 125, 120, 115, 110 }
                     }
                 }
             }
@@ -1447,10 +1447,10 @@ public class DeviceStatusDecomposerTests : IDisposable
                     Timestamp = "2023-11-14T12:00:00Z",
                     PredBGs = new OpenApsPredBGs
                     {
-                        IOB = new List<double> { 120, 115, 110, 105, 100 },
-                        ZT = new List<double> { 120, 118, 115 },
-                        COB = new List<double> { 120, 125, 130, 125, 120 },
-                        UAM = new List<double> { 120, 130, 135, 130 }
+                        IOB = new List<double?> { 120, 115, 110, 105, 100 },
+                        ZT = new List<double?> { 120, 118, 115 },
+                        COB = new List<double?> { 120, 125, 130, 125, 120 },
+                        UAM = new List<double?> { 120, 130, 135, 130 }
                     }
                 }
             }
