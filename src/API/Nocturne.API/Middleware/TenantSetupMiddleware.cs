@@ -5,12 +5,13 @@ using Nocturne.Infrastructure.Data;
 namespace Nocturne.API.Middleware;
 
 /// <summary>
-/// Middleware that returns 503 setupRequired for freshly provisioned tenants
-/// that have no passkey credentials yet. Allows passkey setup and metadata
-/// endpoints through so the setup wizard can complete.
+/// Middleware that returns 503 for freshly provisioned tenants (no passkey
+/// credentials) or tenants in recovery mode (orphaned subjects with no
+/// passkey and no OIDC binding). Allows passkey setup, admin, and metadata
+/// endpoints through so setup/recovery flows can complete.
 ///
 /// Only active in multi-tenant mode (runs after TenantResolutionMiddleware).
-/// Single-tenant setup is handled by RecoveryModeMiddleware.
+/// Single-tenant setup/recovery is handled by RecoveryModeMiddleware.
 /// </summary>
 public class TenantSetupMiddleware
 {
@@ -53,7 +54,7 @@ public class TenantSetupMiddleware
 
         var path = context.Request.Path.Value ?? "";
 
-        // Allow passkey, TOTP, metadata, and slug validation paths
+        // Allow passkey, TOTP, admin, metadata, and slug validation paths
         if (AllowedPaths.Any(p => path.Equals(p, StringComparison.OrdinalIgnoreCase)) ||
             AllowedPrefixes.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase)))
         {
@@ -68,27 +69,58 @@ public class TenantSetupMiddleware
             return;
         }
 
-        // Check if this tenant has completed setup (has at least one passkey credential)
-        // PasskeyCredentialEntity is ITenantScoped — query filter applies automatically
+        // Check 1: Does this tenant have any passkey credentials at all?
+        // PasskeyCredentialEntity is ITenantScoped — query filter applies automatically.
         var hasCredentials = await db.PasskeyCredentials.AnyAsync();
-        if (hasCredentials)
+        if (!hasCredentials)
         {
-            await _next(context);
+            _logger.LogDebug(
+                "Tenant {TenantId} has no passkey credentials — returning setup required",
+                tenantAccessor.TenantId);
+
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "setup_required",
+                message = "Initial setup required. Please register a passkey to secure your account.",
+                setupRequired = true,
+                recoveryMode = false,
+            });
             return;
         }
 
-        _logger.LogDebug(
-            "Tenant {TenantId} has no passkey credentials — returning setup required",
-            tenantAccessor.TenantId);
+        // Check 2: Does this tenant have any orphaned subjects?
+        // Subjects are not tenant-scoped — join through TenantMembers to scope to this tenant.
+        var tenantId = tenantAccessor.TenantId;
+        var hasOrphaned = await db.TenantMembers
+            .Where(tm => tm.TenantId == tenantId)
+            .Join(
+                db.Subjects.Where(s => s.IsActive && !s.IsSystemSubject),
+                tm => tm.SubjectId,
+                s => s.Id,
+                (tm, s) => s)
+            .Where(s =>
+                s.OidcSubjectId == null &&
+                !db.PasskeyCredentials.IgnoreQueryFilters().Any(p => p.SubjectId == s.Id))
+            .AnyAsync();
 
-        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-        await context.Response.WriteAsJsonAsync(new
+        if (hasOrphaned)
         {
-            error = "setup_required",
-            message = "Initial setup required. Please register a passkey to secure your account.",
-            setupRequired = true,
-            recoveryMode = false,
-        });
-        return;
+            _logger.LogDebug(
+                "Tenant {TenantId} has orphaned subjects — returning recovery mode",
+                tenantAccessor.TenantId);
+
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "recovery_mode_active",
+                message = "Instance is in recovery mode. Please register a passkey or authenticator app to continue.",
+                setupRequired = false,
+                recoveryMode = true,
+            });
+            return;
+        }
+
+        await _next(context);
     }
 }
