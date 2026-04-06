@@ -3921,7 +3921,6 @@ msgstr "Appearance"
 msgid "Therapy"
 msgstr "Therapy"
 
-#: src/lib/components/layout/AppSidebar.svelte
 #: src/routes/settings/features/+page.svelte
 msgid "Features"
 msgstr "Features"
