@@ -150,7 +150,7 @@ export const connectorPropertyMeta: Record<ConnectorPropertyKeyName, PropertyMet
   // Nightscout-specific
   Url: {
     label: 'URL',
-    description: 'Nightscout site URL (e.g., https://yoursite.herokuapp.com)',
+    description: 'Site URL (e.g., https://yoursite.herokuapp.com)',
     category: 'General',
   },
   ApiSecret: {

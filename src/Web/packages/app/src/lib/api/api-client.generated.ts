@@ -18,6 +18,7 @@ import {
   AuthorizationClient,
   BatteryClient,
   BGCheckClient,
+  BodyWeightClient,
   BolusCalculationClient,
   BolusClient,
   CalibrationClient,
@@ -44,6 +45,7 @@ import {
   FoodClient,
   FoodsClient,
   HeartRateClient,
+  HomeAssistantWebhookClient,
   InsulinCatalogClient,
   IobClient,
   LastModifiedClient,
@@ -118,6 +120,7 @@ export class ApiClient {
   public readonly authorization: AuthorizationClient;
   public readonly battery: BatteryClient;
   public readonly bGChecks: BGCheckClient;
+  public readonly bodyWeight: BodyWeightClient;
   public readonly bolusCalculations: BolusCalculationClient;
   public readonly boluses: BolusClient;
   public readonly calibrations: CalibrationClient;
@@ -144,6 +147,7 @@ export class ApiClient {
   public readonly food: FoodClient;
   public readonly foodsV4: FoodsClient;
   public readonly heartRate: HeartRateClient;
+  public readonly homeAssistantWebhook: HomeAssistantWebhookClient;
   public readonly insulins: InsulinCatalogClient;
   public readonly iob: IobClient;
   public readonly lastModified: LastModifiedClient;
@@ -218,6 +222,7 @@ export class ApiClient {
     this.authorization = new AuthorizationClient(apiBaseUrl, http);
     this.battery = new BatteryClient(apiBaseUrl, http);
     this.bGChecks = new BGCheckClient(apiBaseUrl, http);
+    this.bodyWeight = new BodyWeightClient(apiBaseUrl, http);
     this.bolusCalculations = new BolusCalculationClient(apiBaseUrl, http);
     this.boluses = new BolusClient(apiBaseUrl, http);
     this.calibrations = new CalibrationClient(apiBaseUrl, http);
@@ -244,6 +249,7 @@ export class ApiClient {
     this.food = new FoodClient(apiBaseUrl, http);
     this.foodsV4 = new FoodsClient(apiBaseUrl, http);
     this.heartRate = new HeartRateClient(apiBaseUrl, http);
+    this.homeAssistantWebhook = new HomeAssistantWebhookClient(apiBaseUrl, http);
     this.insulins = new InsulinCatalogClient(apiBaseUrl, http);
     this.iob = new IobClient(apiBaseUrl, http);
     this.lastModified = new LastModifiedClient(apiBaseUrl, http);
