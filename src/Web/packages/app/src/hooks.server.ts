@@ -146,20 +146,7 @@ const authHandle: Handle = async ({ event, resolve }) => {
 
       // Fetch effective permissions (granted scopes) for the current tenant
       try {
-        const permUrl = new URL("/api/v4/me/permissions", apiBaseUrl);
-        const permHeaders = new Headers();
-        if (getHashedInstanceKey()) {
-          permHeaders.set("X-Instance-Key", getHashedInstanceKey()!);
-        }
-        const permCookies: string[] = [];
-        if (accessToken) permCookies.push(`${AUTH_COOKIE_NAMES.accessToken}=${accessToken}`);
-        if (refreshToken) permCookies.push(`${AUTH_COOKIE_NAMES.refreshToken}=${refreshToken}`);
-        if (permCookies.length > 0) permHeaders.set("Cookie", permCookies.join("; "));
-
-        const permResponse = await fetch(permUrl.toString(), { headers: permHeaders });
-        if (permResponse.ok) {
-          event.locals.effectivePermissions = await permResponse.json();
-        }
+        event.locals.effectivePermissions = await apiClient.myPermissions.getMyPermissions();
       } catch {
         // Non-fatal — permissions will default to empty
       }
