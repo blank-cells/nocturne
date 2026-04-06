@@ -80,6 +80,7 @@ import {
   StatisticsClient,
   StatusClient,
   StepCountClient,
+  SummaryClient,
   SystemClient,
   SystemEventsClient,
   TenantClient,
@@ -93,7 +94,6 @@ import {
   UserPreferencesClient,
   DDataClient,
   PropertiesClient,
-  SummaryClient,
   VersionClient,
   VersionsClient,
   WebhookSettingsClient
@@ -182,6 +182,7 @@ export class ApiClient {
   public readonly statistics: StatisticsClient;
   public readonly status: StatusClient;
   public readonly stepCount: StepCountClient;
+  public readonly summary: SummaryClient;
   public readonly system: SystemClient;
   public readonly systemEvents: SystemEventsClient;
   public readonly tenant: TenantClient;
@@ -195,7 +196,6 @@ export class ApiClient {
   public readonly userPreferences: UserPreferencesClient;
   public readonly v2DData: DDataClient;
   public readonly v2Properties: PropertiesClient;
-  public readonly v2Summary: SummaryClient;
   public readonly version: VersionClient;
   public readonly versions: VersionsClient;
   public readonly webhookSettings: WebhookSettingsClient;
@@ -284,6 +284,7 @@ export class ApiClient {
     this.statistics = new StatisticsClient(apiBaseUrl, http);
     this.status = new StatusClient(apiBaseUrl, http);
     this.stepCount = new StepCountClient(apiBaseUrl, http);
+    this.summary = new SummaryClient(apiBaseUrl, http);
     this.system = new SystemClient(apiBaseUrl, http);
     this.systemEvents = new SystemEventsClient(apiBaseUrl, http);
     this.tenant = new TenantClient(apiBaseUrl, http);
@@ -297,7 +298,6 @@ export class ApiClient {
     this.userPreferences = new UserPreferencesClient(apiBaseUrl, http);
     this.v2DData = new DDataClient(apiBaseUrl, http);
     this.v2Properties = new PropertiesClient(apiBaseUrl, http);
-    this.v2Summary = new SummaryClient(apiBaseUrl, http);
     this.version = new VersionClient(apiBaseUrl, http);
     this.versions = new VersionsClient(apiBaseUrl, http);
     this.webhookSettings = new WebhookSettingsClient(apiBaseUrl, http);
