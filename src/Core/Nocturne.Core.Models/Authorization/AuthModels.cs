@@ -48,6 +48,17 @@ public class AuthResult
 /// Authentication context containing user identity and permissions.
 /// MemberScopeMiddleware enriches this with effective permissions from
 /// the RBAC system (role permissions + direct permissions).
+///
+/// Follower Access Pattern:
+/// When a user (the "follower") has been granted access to another user's (the "data owner's")
+/// data via a follower grant, they can make requests on behalf of the data owner. In this case:
+/// - SubjectId remains the follower's own ID (who is making the request)
+/// - ActingAsSubjectId is set to the data owner's ID (whose data is being accessed)
+/// - EffectiveSubjectId returns ActingAsSubjectId for use in data queries
+/// - Scopes are limited to what the data owner granted to the follower
+///
+/// Controllers should use EffectiveSubjectId when querying user-specific data to ensure
+/// followers see the data owner's data, not their own.
 /// </summary>
 public class AuthContext
 {
@@ -122,11 +133,32 @@ public class AuthContext
     public DateTimeOffset? ExpiresAt { get; set; }
 
     /// <summary>
+    /// When a follower is acting on behalf of a data owner, this is the data owner's subject ID.
+    /// Null when acting as self.
+    /// </summary>
+    public Guid? ActingAsSubjectId { get; set; }
+
+    /// <summary>
+    /// When a follower is acting on behalf of a data owner, this is the data owner's display name.
+    /// </summary>
+    public string? ActingAsSubjectName { get; set; }
+
+    /// <summary>
     /// When true, data requests should only return data from the last 24 hours
-    /// (rolling window from current request time). Set for follower memberships
-    /// that have the 24-hour limit enabled.
+    /// (rolling window from current request time). Used for "only share data from
+    /// last 24 hours" feature.
     /// </summary>
     public bool LimitTo24Hours { get; set; }
+
+    /// <summary>
+    /// The effective subject ID for data queries. Returns ActingAsSubjectId if set, otherwise SubjectId.
+    /// </summary>
+    public Guid? EffectiveSubjectId => ActingAsSubjectId ?? SubjectId;
+
+    /// <summary>
+    /// Whether the current request is acting on behalf of another user.
+    /// </summary>
+    public bool IsActingAsFollower => ActingAsSubjectId.HasValue;
 
     /// <summary>
     /// Create an unauthenticated context
