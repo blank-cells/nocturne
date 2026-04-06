@@ -173,10 +173,10 @@ public class AuthenticationMiddleware
                 context.Items["AuthContext"] = publicAuthContext;
 
                 var publicPermissionTrie = new PermissionTrie();
-                publicPermissionTrie.Add(publicAccess.EffectivePermissions.ToList());
+                publicPermissionTrie.Add(publicAccess.EffectivePermissions);
                 context.Items["PermissionTrie"] = publicPermissionTrie;
 
-                var publicScopes = ScopeTranslator.FromPermissions(publicAccess.EffectivePermissions.ToList());
+                var publicScopes = ScopeTranslator.FromPermissions(publicAccess.EffectivePermissions);
                 context.Items["GrantedScopes"] = publicScopes;
 
                 context.Items["AuthenticationContext"] = MapToLegacyContext(publicAuthContext);

@@ -97,7 +97,7 @@ public sealed class PublicAccessCacheService
         var rolePermissions = membership.MemberRoles
             .SelectMany(mr => mr.TenantRole.Permissions);
         var directPermissions = membership.DirectPermissions ?? [];
-        var effectivePermissions = rolePermissions.Union(directPermissions).Distinct().ToHashSet();
+        var effectivePermissions = rolePermissions.Union(directPermissions).ToHashSet();
 
         if (effectivePermissions.Count == 0)
         {
