@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Nocturne.API.Authorization;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 
@@ -13,7 +14,7 @@ namespace Nocturne.API.Controllers.V1;
 [ApiController]
 [Route("api/v1/[controller]")]
 [Produces("application/json")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class ActivityController : ControllerBase
 {
     private readonly IActivityService _activityService;
@@ -34,7 +35,6 @@ public class ActivityController : ControllerBase
     /// Returns regular activities, heart rate, and step count data merged by timestamp.
     /// </summary>
     [HttpGet]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(IEnumerable<Activity>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<IEnumerable<Activity>>> GetActivities(
@@ -80,7 +80,6 @@ public class ActivityController : ControllerBase
     /// Get a specific activity by ID (checks StateSpans, heart_rates, and step_counts)
     /// </summary>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(Activity), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -112,6 +111,7 @@ public class ActivityController : ControllerBase
     /// Heart rate and step count data is automatically routed to dedicated tables.
     /// </summary>
     [HttpPost]
+    [Authorize]
     [ProducesResponseType(typeof(IEnumerable<Activity>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -175,6 +175,7 @@ public class ActivityController : ControllerBase
     /// Update an existing activity
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize]
     [ProducesResponseType(typeof(Activity), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -215,6 +216,7 @@ public class ActivityController : ControllerBase
     /// Delete an activity by ID (also deletes any decomposed heart rate / step count records)
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]

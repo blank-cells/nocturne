@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.API.Extensions;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Contracts.Alerts;
@@ -17,7 +18,7 @@ namespace Nocturne.API.Controllers.V3;
 /// </summary>
 [ApiController]
 [Route("api/v3/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class EntriesController : BaseV3Controller<Entry>
 {
     private readonly IEntryRepository _entries;
@@ -43,7 +44,6 @@ public class EntriesController : BaseV3Controller<Entry>
     /// </summary>
     /// <returns>V3 entries collection response</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/entries")]
     [ProducesResponseType(typeof(V3CollectionResponse<object>), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -126,7 +126,6 @@ public class EntriesController : BaseV3Controller<Entry>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Single entry in V3 format</returns>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/entries/:id")]
     [ProducesResponseType(typeof(Entry), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -172,6 +171,7 @@ public class EntriesController : BaseV3Controller<Entry>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created entry</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/entries")]
     [ProducesResponseType(typeof(Entry), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -268,6 +268,7 @@ public class EntriesController : BaseV3Controller<Entry>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created entries</returns>
     [HttpPost("bulk")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/entries/bulk")]
     [ProducesResponseType(typeof(Entry[]), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -343,6 +344,7 @@ public class EntriesController : BaseV3Controller<Entry>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated entry</returns>
     [HttpPut("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/entries/:id")]
     [ProducesResponseType(typeof(Entry), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -412,6 +414,7 @@ public class EntriesController : BaseV3Controller<Entry>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>No content on success</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/entries/:id")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -451,7 +454,6 @@ public class EntriesController : BaseV3Controller<Entry>
     /// Get entries modified since a given timestamp (for AAPS incremental sync)
     /// </summary>
     [HttpGet("history/{lastModified:long}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/entries/history/{lastModified}")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(500)]

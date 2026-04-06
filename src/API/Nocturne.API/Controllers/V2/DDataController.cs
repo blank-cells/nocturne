@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Nocturne.API.Authorization;
 using OpenApi.Remote.Attributes;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
@@ -15,7 +16,7 @@ namespace Nocturne.API.Controllers.V2;
 [Produces("application/json")]
 [Tags("V2 DData")]
 [ClientPropertyName("v2DData")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class DDataController : ControllerBase
 {
     private readonly IDDataService _ddataService;
@@ -36,7 +37,6 @@ public class DDataController : ControllerBase
     /// <response code="200">Returns the DData structure</response>
     /// <response code="500">If there was an internal server error</response>
     [HttpGet]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(DDataResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<DDataResponse>> GetDData(
@@ -70,7 +70,6 @@ public class DDataController : ControllerBase
     /// <response code="400">If the timestamp parameter is invalid</response>
     /// <response code="500">If there was an internal server error</response>
     [HttpGet("at/{timestamp}")]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(DDataResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
@@ -145,7 +144,6 @@ public class DDataController : ControllerBase
     /// <response code="400">If the timestamp parameter is invalid</response>
     /// <response code="500">If there was an internal server error</response>
     [HttpGet("raw")]
-    [AllowAnonymous]
     [ProducesResponseType(typeof(DData), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]

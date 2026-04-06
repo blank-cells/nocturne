@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Core.Contracts.Repositories;
@@ -14,7 +15,7 @@ namespace Nocturne.API.Controllers.V3;
 /// </summary>
 [ApiController]
 [Route("api/v3/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class FoodController : BaseV3Controller<Food>
 {
     private readonly IFoodRepository _foods;
@@ -34,7 +35,6 @@ public class FoodController : BaseV3Controller<Food>
     /// </summary>
     /// <returns>V3 food collection response</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/food")]
     [ProducesResponseType(typeof(V3CollectionResponse<object>), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -225,7 +225,6 @@ public class FoodController : BaseV3Controller<Food>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Single food record in V3 format</returns>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/food/{id}")]
     [ProducesResponseType(typeof(Food), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -276,6 +275,7 @@ public class FoodController : BaseV3Controller<Food>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created food records</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/food")]
     [ProducesResponseType(typeof(Food[]), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -367,6 +367,7 @@ public class FoodController : BaseV3Controller<Food>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated food record</returns>
     [HttpPut("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/food/{id}")]
     [ProducesResponseType(typeof(Food), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -503,6 +504,7 @@ public class FoodController : BaseV3Controller<Food>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>No content on success</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/food/{id}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]

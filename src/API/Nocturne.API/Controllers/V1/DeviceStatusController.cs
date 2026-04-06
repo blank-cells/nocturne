@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.API.Services;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
@@ -14,7 +15,7 @@ namespace Nocturne.API.Controllers.V1;
 /// </summary>
 [ApiController]
 [Route("api/v1/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class DeviceStatusController : ControllerBase
 {
     private readonly IDeviceStatusService _deviceStatusService;
@@ -38,7 +39,6 @@ public class DeviceStatusController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Array of device status entries ordered by most recent first</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v1/devicestatus")]
     [ProducesResponseType(typeof(DeviceStatus[]), 200)]
     [ProducesResponseType(400)]
@@ -143,6 +143,7 @@ public class DeviceStatusController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created device status entries with assigned IDs</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/devicestatus")]
     [ProducesResponseType(typeof(DeviceStatus[]), 200)]
     [ProducesResponseType(400)]
@@ -230,6 +231,7 @@ public class DeviceStatusController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Success status</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/devicestatus/:id")]
     [ProducesResponseType(200)]
     [ProducesResponseType(404)]
@@ -279,6 +281,7 @@ public class DeviceStatusController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Number of deleted entries</returns>
     [HttpDelete]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/devicestatus")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(400)]
@@ -346,7 +349,6 @@ public class DeviceStatusController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Array of device status entries ordered by most recent first</returns>
     [HttpGet("~/api/v1/devicestatus.json")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v1/devicestatus.json")]
     [ProducesResponseType(typeof(DeviceStatus[]), 200)]
     [ProducesResponseType(400)]

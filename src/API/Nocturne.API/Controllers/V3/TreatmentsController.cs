@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Core.Contracts.Repositories;
@@ -14,7 +15,7 @@ namespace Nocturne.API.Controllers.V3;
 /// </summary>
 [ApiController]
 [Route("api/v3/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class TreatmentsController : BaseV3Controller<Treatment>
 {
     private readonly ITreatmentRepository _treatments;
@@ -37,7 +38,6 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// </summary>
     /// <returns>V3 treatments collection response</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/treatments")]
     [ProducesResponseType(typeof(V3CollectionResponse<object>), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -115,7 +115,6 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Single treatment in V3 format</returns>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/treatments/:id")]
     [ProducesResponseType(typeof(Treatment), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -161,6 +160,7 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created treatment</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/treatments")]
     [ProducesResponseType(typeof(Treatment), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -254,6 +254,7 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created treatments</returns>
     [HttpPost("bulk")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/treatments/bulk")]
     [ProducesResponseType(typeof(Treatment[]), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -328,6 +329,7 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated treatment</returns>
     [HttpPut("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/treatments/:id")]
     [ProducesResponseType(typeof(Treatment), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -397,6 +399,7 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>No content on success</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/treatments/:id")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -436,7 +439,6 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// Get treatments modified since a given timestamp (for AAPS incremental sync)
     /// </summary>
     [HttpGet("history/{lastModified:long}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/treatments/history/{lastModified}")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(500)]
@@ -475,6 +477,7 @@ public class TreatmentsController : BaseV3Controller<Treatment>
     /// Used by AAPS to update Temp Basal duration, endId, etc.
     /// </summary>
     [HttpPatch("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/treatments/:id")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]

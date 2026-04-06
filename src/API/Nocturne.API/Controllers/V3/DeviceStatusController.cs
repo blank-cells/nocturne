@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Core.Contracts.Repositories;
@@ -14,7 +15,7 @@ namespace Nocturne.API.Controllers.V3;
 /// </summary>
 [ApiController]
 [Route("api/v3/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class DeviceStatusController : BaseV3Controller<DeviceStatus>
 {
     private readonly IDeviceStatusRepository _deviceStatuses;
@@ -37,7 +38,6 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
     /// </summary>
     /// <returns>V3 device status collection response</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/devicestatus")]
     [ProducesResponseType(typeof(V3CollectionResponse<object>), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -121,7 +121,6 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Single device status record in V3 format</returns>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/devicestatus/{id}")]
     [ProducesResponseType(typeof(DeviceStatus), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -162,6 +161,7 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created device status records</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/devicestatus")]
     [ProducesResponseType(typeof(DeviceStatus[]), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -277,6 +277,7 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated device status record</returns>
     [HttpPut("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/devicestatus/{id}")]
     [ProducesResponseType(typeof(Dictionary<string, object>), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -369,6 +370,7 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>No content on success</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/devicestatus/{id}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -412,7 +414,6 @@ public class DeviceStatusController : BaseV3Controller<DeviceStatus>
     /// Get device status records modified since a given timestamp (for AAPS incremental sync)
     /// </summary>
     [HttpGet("history/{lastModified:long}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/devicestatus/history/{lastModified}")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(500)]

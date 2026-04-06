@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Core.Contracts.Repositories;
@@ -14,7 +15,7 @@ namespace Nocturne.API.Controllers.V1;
 /// </summary>
 [ApiController]
 [Route("api/v1/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class FoodController : ControllerBase
 {
     private readonly IFoodRepository _foodRepository;
@@ -32,7 +33,6 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Array of food records ordered by name/position</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v1/food")]
     [ProducesResponseType(typeof(Food[]), 200)]
     [ProducesResponseType(500)]
@@ -76,7 +76,6 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Array of food records</returns>
     [HttpGet("~/api/v1/food.json")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v1/food.json")]
     [ProducesResponseType(typeof(Food[]), 200)]
     [ProducesResponseType(500)]
@@ -93,7 +92,6 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Array of regular food records</returns>
     [HttpGet("regular")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v1/food/regular")]
     [ProducesResponseType(typeof(Food[]), 200)]
     [ProducesResponseType(500)]
@@ -136,7 +134,6 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Array of quickpick food records ordered by position</returns>
     [HttpGet("quickpicks")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v1/food/quickpicks")]
     [ProducesResponseType(typeof(Food[]), 200)]
     [ProducesResponseType(500)]
@@ -186,7 +183,6 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The food record with the specified ID</returns>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v1/food/:id")]
     [ProducesResponseType(typeof(Food), 200)]
     [ProducesResponseType(404)]
@@ -240,6 +236,7 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created food records with assigned IDs</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/food")]
     [ProducesResponseType(typeof(Food[]), 201)]
     [ProducesResponseType(400)]
@@ -355,6 +352,7 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated food record</returns>
     [HttpPut("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/food/:id")]
     [ProducesResponseType(typeof(Food), 200)]
     [ProducesResponseType(404)]
@@ -440,6 +438,7 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated food record</returns>
     [HttpPut]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/food")]
     [ProducesResponseType(typeof(Food), 200)]
     [ProducesResponseType(404)]
@@ -471,6 +470,7 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>No content if successful</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/food/:id")]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
@@ -521,6 +521,7 @@ public class FoodController : ControllerBase
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Empty object for parity with Nightscout</returns>
     [HttpDelete]
+    [Authorize]
     [NightscoutEndpoint("/api/v1/food")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(500)]

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Core.Contracts.Repositories;
@@ -15,7 +16,7 @@ namespace Nocturne.API.Controllers.V3;
 /// </summary>
 [ApiController]
 [Route("api/v3/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class SettingsController : BaseV3Controller<Settings>
 {
     private readonly ISettingsRepository _settings;
@@ -36,7 +37,6 @@ public class SettingsController : BaseV3Controller<Settings>
     /// </summary>
     /// <returns>V3 settings collection response</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/settings")]
     [ProducesResponseType(typeof(V3CollectionResponse<object>), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -118,7 +118,6 @@ public class SettingsController : BaseV3Controller<Settings>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Single settings record in V3 format</returns>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/settings/{id}")]
     [ProducesResponseType(typeof(Settings), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -173,6 +172,7 @@ public class SettingsController : BaseV3Controller<Settings>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created settings records</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/settings")]
     [ProducesResponseType(typeof(Settings[]), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -243,6 +243,7 @@ public class SettingsController : BaseV3Controller<Settings>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated settings record</returns>
     [HttpPut("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/settings/{id}")]
     [ProducesResponseType(typeof(Settings), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -315,6 +316,7 @@ public class SettingsController : BaseV3Controller<Settings>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>No content on success</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/settings/{id}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]

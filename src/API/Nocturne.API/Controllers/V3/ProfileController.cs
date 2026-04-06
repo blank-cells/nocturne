@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Core.Contracts.Repositories;
@@ -14,7 +15,7 @@ namespace Nocturne.API.Controllers.V3;
 /// </summary>
 [ApiController]
 [Route("api/v3/[controller]")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class ProfileController : BaseV3Controller<Profile>
 {
     private readonly IProfileRepository _profiles;
@@ -34,7 +35,6 @@ public class ProfileController : BaseV3Controller<Profile>
     /// </summary>
     /// <returns>V3 profiles collection response</returns>
     [HttpGet]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/profile")]
     [ProducesResponseType(typeof(V3CollectionResponse<object>), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -110,7 +110,6 @@ public class ProfileController : BaseV3Controller<Profile>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Single profile in V3 format</returns>
     [HttpGet("{id}")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v3/profile/{id}")]
     [ProducesResponseType(typeof(Profile), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -160,6 +159,7 @@ public class ProfileController : BaseV3Controller<Profile>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Created profiles</returns>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/profile")]
     [ProducesResponseType(typeof(Profile[]), 201)]
     [ProducesResponseType(typeof(V3ErrorResponse), 400)]
@@ -222,6 +222,7 @@ public class ProfileController : BaseV3Controller<Profile>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Updated profile</returns>
     [HttpPut("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/profile/{id}")]
     [ProducesResponseType(typeof(Profile), 200)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]
@@ -290,6 +291,7 @@ public class ProfileController : BaseV3Controller<Profile>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>No content on success</returns>
     [HttpDelete("{id}")]
+    [Authorize]
     [NightscoutEndpoint("/api/v3/profile/{id}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(V3ErrorResponse), 404)]

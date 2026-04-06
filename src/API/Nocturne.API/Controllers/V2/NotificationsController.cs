@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nocturne.API.Attributes;
+using Nocturne.API.Authorization;
 using OpenApi.Remote.Attributes;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
@@ -17,7 +18,7 @@ namespace Nocturne.API.Controllers.V2;
 [Produces("application/json")]
 [Tags("V2 Notifications")]
 [ClientPropertyName("v2Notifications")]
-[Authorize]
+[Authorize(Policy = PolicyNames.HasPermissions)]
 public class NotificationsController : ControllerBase
 {
     private readonly INotificationV2Service _notificationService;
@@ -43,6 +44,7 @@ public class NotificationsController : ControllerBase
     /// <response code="400">Invalid notification request</response>
     /// <response code="500">Internal server error</response>
     [HttpPost("loop")]
+    [Authorize]
     [NightscoutEndpoint("/api/v2/notifications/loop")]
     [ProducesResponseType(typeof(NotificationV2Response), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(NotificationV2Response), StatusCodes.Status400BadRequest)]
@@ -128,6 +130,7 @@ public class NotificationsController : ControllerBase
     /// <response code="400">Invalid notification request</response>
     /// <response code="500">Internal server error</response>
     [HttpPost]
+    [Authorize]
     [NightscoutEndpoint("/api/v2/notifications")]
     [ProducesResponseType(typeof(NotificationV2Response), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(NotificationV2Response), StatusCodes.Status400BadRequest)]
@@ -207,7 +210,6 @@ public class NotificationsController : ControllerBase
     /// <response code="200">Notification status retrieved successfully</response>
     /// <response code="500">Internal server error</response>
     [HttpGet("status")]
-    [AllowAnonymous]
     [NightscoutEndpoint("/api/v2/notifications/status")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
