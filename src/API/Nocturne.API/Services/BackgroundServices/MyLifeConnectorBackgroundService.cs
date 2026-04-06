@@ -1,4 +1,5 @@
 using Nocturne.Connectors.Core.Interfaces;
+using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.MyLife.Configurations;
 using Nocturne.Connectors.MyLife.Services;
 
@@ -18,7 +19,7 @@ public class MyLifeConnectorBackgroundService : ConnectorBackgroundService<MyLif
 
     protected override string ConnectorName => "MyLife";
 
-    protected override async Task<bool> PerformSyncAsync(IServiceProvider scopeProvider, CancellationToken cancellationToken, ISyncProgressReporter? progressReporter = null)
+    protected override async Task<SyncResult> PerformSyncAsync(IServiceProvider scopeProvider, CancellationToken cancellationToken, ISyncProgressReporter? progressReporter = null)
     {
         var connectorService = scopeProvider.GetRequiredService<MyLifeConnectorService>();
         return await connectorService.SyncDataAsync(Config, cancellationToken, since: null, progressReporter);

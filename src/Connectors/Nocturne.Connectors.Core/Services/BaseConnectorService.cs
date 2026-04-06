@@ -819,7 +819,7 @@ public abstract class BaseConnectorService<TConfig> : IConnectorService<TConfig>
     ///     Main sync method for background synchronization.
     ///     Uses PerformSyncInternalAsync for sequential processing.
     /// </summary>
-    public virtual async Task<bool> SyncDataAsync(
+    public virtual async Task<SyncResult> SyncDataAsync(
         TConfig config,
         CancellationToken cancellationToken = default,
         DateTime? since = null,
@@ -836,7 +836,13 @@ public abstract class BaseConnectorService<TConfig> : IConnectorService<TConfig>
             if (!await AuthenticateAsync())
             {
                 _logger.LogError("Authentication failed for {ConnectorSource}", ConnectorSource);
-                return false;
+                return new SyncResult
+                {
+                    Success = false,
+                    StartTime = DateTimeOffset.UtcNow,
+                    EndTime = DateTimeOffset.UtcNow,
+                    Errors = { $"Authentication failed for {ConnectorSource}" }
+                };
             }
 
             // Determine catch-up timestamp
@@ -866,16 +872,17 @@ public abstract class BaseConnectorService<TConfig> : IConnectorService<TConfig>
                             result.ItemsSynced[type],
                             type
                         );
-
-                return true;
+            }
+            else
+            {
+                _logger.LogError(
+                    "Background sync for {ConnectorSource} failed or had errors: {Errors}",
+                    ConnectorSource,
+                    string.Join("; ", result.Errors)
+                );
             }
 
-            _logger.LogError(
-                "Background sync for {ConnectorSource} failed or had errors: {Errors}",
-                ConnectorSource,
-                string.Join("; ", result.Errors)
-            );
-            return false;
+            return result;
         }
         catch (Exception ex)
         {
@@ -884,7 +891,13 @@ public abstract class BaseConnectorService<TConfig> : IConnectorService<TConfig>
                 "Unexpected error in background SyncDataAsync for {ConnectorSource}",
                 ConnectorSource
             );
-            return false;
+            return new SyncResult
+            {
+                Success = false,
+                StartTime = DateTimeOffset.UtcNow,
+                EndTime = DateTimeOffset.UtcNow,
+                Errors = { ex.Message }
+            };
         }
     }
 

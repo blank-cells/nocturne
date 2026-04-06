@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nocturne.Connectors.Core.Interfaces;
+using Nocturne.Connectors.Core.Models;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Contracts.Multitenancy;
 using Nocturne.Infrastructure.Data;
@@ -51,8 +52,8 @@ public abstract class ConnectorBackgroundService<TConfig> : BackgroundService
     /// </summary>
     /// <param name="scopeProvider">Tenant-scoped service provider</param>
     /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>True if sync was successful, false otherwise</returns>
-    protected abstract Task<bool> PerformSyncAsync(IServiceProvider scopeProvider, CancellationToken cancellationToken, ISyncProgressReporter? progressReporter = null);
+    /// <returns>A SyncResult indicating success/failure and any error details</returns>
+    protected abstract Task<SyncResult> PerformSyncAsync(IServiceProvider scopeProvider, CancellationToken cancellationToken, ISyncProgressReporter? progressReporter = null);
 
     /// <summary>
     /// Loads runtime configuration and secrets from the database and applies them
@@ -288,9 +289,9 @@ public abstract class ConnectorBackgroundService<TConfig> : BackgroundService
             cancellationToken: stoppingToken);
 
         var progressReporter = scope.ServiceProvider.GetService<ISyncProgressReporter>();
-        var success = await PerformSyncAsync(scope.ServiceProvider, stoppingToken, progressReporter);
+        var result = await PerformSyncAsync(scope.ServiceProvider, stoppingToken, progressReporter);
 
-        if (success)
+        if (result.Success)
         {
             Logger.LogInformation(
                 "{ConnectorName} sync completed for tenant {TenantSlug}",
@@ -306,14 +307,20 @@ public abstract class ConnectorBackgroundService<TConfig> : BackgroundService
         }
         else
         {
+            var errorMessage = result.Errors.Count > 0
+                ? string.Join("; ", result.Errors)
+                : !string.IsNullOrWhiteSpace(result.Message)
+                    ? result.Message
+                    : "Sync failed";
+
             Logger.LogWarning(
-                "{ConnectorName} sync failed for tenant {TenantSlug}",
-                ConnectorName, tenantSlug);
+                "{ConnectorName} sync failed for tenant {TenantSlug}: {ErrorMessage}",
+                ConnectorName, tenantSlug, errorMessage);
 
             await UpdateHealthStateAsync(
                 scope.ServiceProvider,
                 isHealthy: false,
-                lastErrorMessage: "Sync failed after retries",
+                lastErrorMessage: errorMessage,
                 lastErrorAt: DateTime.UtcNow,
                 cancellationToken: stoppingToken);
         }

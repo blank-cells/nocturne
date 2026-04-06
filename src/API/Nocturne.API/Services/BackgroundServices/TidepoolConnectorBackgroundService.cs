@@ -1,4 +1,5 @@
 using Nocturne.Connectors.Core.Interfaces;
+using Nocturne.Connectors.Core.Models;
 using Nocturne.Connectors.Tidepool.Configurations;
 using Nocturne.Connectors.Tidepool.Services;
 
@@ -18,7 +19,7 @@ public class TidepoolConnectorBackgroundService : ConnectorBackgroundService<Tid
 
     protected override string ConnectorName => "Tidepool";
 
-    protected override async Task<bool> PerformSyncAsync(IServiceProvider scopeProvider, CancellationToken cancellationToken, ISyncProgressReporter? progressReporter = null)
+    protected override async Task<SyncResult> PerformSyncAsync(IServiceProvider scopeProvider, CancellationToken cancellationToken, ISyncProgressReporter? progressReporter = null)
     {
         var connectorService = scopeProvider.GetRequiredService<TidepoolConnectorService>();
         return await connectorService.SyncDataAsync(Config, cancellationToken, since: null, progressReporter);

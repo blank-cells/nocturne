@@ -142,7 +142,7 @@ public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalCon
     /// <summary>
     /// Main sync method for background synchronization.
     /// </summary>
-    public override async Task<bool> SyncDataAsync(
+    public override async Task<SyncResult> SyncDataAsync(
         MyFitnessPalConnectorConfiguration config,
         CancellationToken cancellationToken = default,
         DateTime? since = null,
@@ -158,7 +158,13 @@ public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalCon
             if (!await AuthenticateAsync())
             {
                 _logger.LogError("Authentication failed for {ConnectorSource}", ConnectorSource);
-                return false;
+                return new SyncResult
+                {
+                    Success = false,
+                    StartTime = DateTimeOffset.UtcNow,
+                    EndTime = DateTimeOffset.UtcNow,
+                    Errors = { $"Authentication failed for {ConnectorSource}" }
+                };
             }
 
             var from = since ?? DateTime.UtcNow.AddDays(-config.LookbackDays);
@@ -186,15 +192,17 @@ public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalCon
                             result.ItemsSynced[type],
                             type
                         );
-                return true;
+            }
+            else
+            {
+                _logger.LogError(
+                    "Background sync for {ConnectorSource} failed: {Errors}",
+                    ConnectorSource,
+                    string.Join("; ", result.Errors)
+                );
             }
 
-            _logger.LogError(
-                "Background sync for {ConnectorSource} failed: {Errors}",
-                ConnectorSource,
-                string.Join("; ", result.Errors)
-            );
-            return false;
+            return result;
         }
         catch (Exception ex)
         {
@@ -203,7 +211,13 @@ public class MyFitnessPalConnectorService : BaseConnectorService<MyFitnessPalCon
                 "Unexpected error in background SyncDataAsync for {ConnectorSource}",
                 ConnectorSource
             );
-            return false;
+            return new SyncResult
+            {
+                Success = false,
+                StartTime = DateTimeOffset.UtcNow,
+                EndTime = DateTimeOffset.UtcNow,
+                Errors = { ex.Message }
+            };
         }
     }
 
