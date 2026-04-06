@@ -3,6 +3,7 @@
   import { Badge } from "$lib/components/ui/badge";
   import {
     Fingerprint,
+    Shield,
     HeartPulse,
     Smartphone,
     Syringe,
@@ -19,6 +20,7 @@
   import * as servicesRemote from "$lib/api/generated/services.generated.remote";
   import * as profileRemote from "$lib/api/generated/profiles.generated.remote";
   import { markSetupComplete } from "./setup.remote";
+  import { getPublicAccessConfig } from "./permissions/permissions.remote";
 
   // ── Data loading ──────────────────────────────────────────────────
 
@@ -28,6 +30,7 @@
   const servicesOverview = servicesRemote.getServicesOverview();
   const activeDataSources = servicesRemote.getActiveDataSources();
   const profileSummary = profileRemote.getProfileSummary(undefined);
+  const publicAccessConfig = getPublicAccessConfig();
 
   // Known uploader app source types for completion detection
   const uploaderSourceTypes = new Set([
@@ -51,6 +54,13 @@
       description: "Set up passwordless authentication with a passkey",
       icon: Fingerprint,
       href: "/settings/setup/passkey",
+      required: true,
+    },
+    {
+      title: "Sharing & Privacy",
+      description: "Choose who can see your data",
+      icon: Shield,
+      href: "/settings/setup/permissions",
       required: true,
     },
     {
@@ -104,6 +114,8 @@
     // (they must have a passkey or OIDC session to reach this page)
     const passkeyComplete = true;
 
+    const permissionsComplete = !!publicAccessConfig.current?.configured;
+
     const patientComplete = !!patientRecord.current?.diabetesType;
 
     const devicesComplete =
@@ -127,6 +139,7 @@
 
     return [
       passkeyComplete,
+      permissionsComplete,
       patientComplete,
       devicesComplete,
       insulinsComplete,
@@ -158,7 +171,7 @@
   <div>
     <h1 class="text-2xl font-bold tracking-tight">Setup</h1>
     <p class="text-muted-foreground">
-      {requiredComplete} of 5 required steps complete
+      {requiredComplete} of 6 required steps complete
     </p>
   </div>
 

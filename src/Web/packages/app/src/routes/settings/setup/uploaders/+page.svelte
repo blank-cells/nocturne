@@ -245,8 +245,8 @@
 <WizardShell
   title="Configure Uploader App"
   description="Set up a phone app to push glucose and treatment data to Nocturne. You can always add more uploaders later."
-  currentStep={5}
-  totalSteps={7}
+  currentStep={6}
+  totalSteps={8}
   prevHref="/settings/setup/insulins"
   nextHref="/settings/setup/connectors"
   showSkip={true}

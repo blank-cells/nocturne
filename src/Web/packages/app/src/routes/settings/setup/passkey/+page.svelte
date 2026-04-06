@@ -101,7 +101,7 @@
   title="Set Up Your Passkey"
   description="Create a passkey for secure, passwordless authentication. You will also receive recovery codes in case you lose access to your passkey."
   currentStep={1}
-  totalSteps={7}
+  totalSteps={8}
   nextHref="/settings/setup/patient"
   showSkip={false}
   saveDisabled={!canProceed}

@@ -14,8 +14,8 @@
 <WizardShell
   title="Your Devices"
   description="Add the diabetes devices you use. You can always update these later."
-  currentStep={3}
-  totalSteps={7}
+  currentStep={4}
+  totalSteps={8}
   prevHref="/settings/setup/patient"
   nextHref="/settings/setup/insulins"
   showSkip={true}

@@ -11,8 +11,8 @@
 <WizardShell
   title="Connect Data Sources"
   description="Set up a server-side connector to start pulling data into Nocturne. You can always add more connectors later."
-  currentStep={6}
-  totalSteps={7}
+  currentStep={7}
+  totalSteps={8}
   prevHref="/settings/setup/uploaders"
   nextHref="/settings/setup/profile"
   showSkip={true}
