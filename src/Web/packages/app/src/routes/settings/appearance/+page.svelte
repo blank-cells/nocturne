@@ -36,6 +36,7 @@
     SelectItem,
     SelectTrigger,
   } from "$lib/components/ui/select";
+  import { Label as FormLabel } from "$lib/components/ui/label";
   import {
     Palette,
     Sun,
@@ -46,6 +47,7 @@
     Languages,
     AlertCircle,
     Timer,
+    Eye,
   } from "lucide-svelte";
   import SettingsPageSkeleton from "$lib/components/settings/SettingsPageSkeleton.svelte";
   import { browser } from "$app/environment";
@@ -370,6 +372,48 @@
       onchange={handleWidgetsChange}
       maxWidgets={3}
     />
+
+    <!-- Chart Options -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <Eye class="h-5 w-5" />
+          Chart Options
+        </CardTitle>
+        <CardDescription>Configure chart display preferences</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="space-y-2">
+            <FormLabel>Default chart range</FormLabel>
+            <Select
+              type="single"
+              value={String(store.features?.display?.focusHours ?? 3)}
+              onValueChange={(value: string) => {
+                if (!store.features) return;
+                if (!store.features.display) {
+                  store.features.display = {};
+                }
+                store.features.display.focusHours = parseInt(value);
+                store.markChanged();
+              }}
+            >
+              <SelectTrigger>
+                <span>{store.features?.display?.focusHours ?? 3} hours</span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 hour</SelectItem>
+                <SelectItem value="2">2 hours</SelectItem>
+                <SelectItem value="3">3 hours</SelectItem>
+                <SelectItem value="6">6 hours</SelectItem>
+                <SelectItem value="12">12 hours</SelectItem>
+                <SelectItem value="24">24 hours</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
 
     <!-- Tracker Pills -->
     <Card>

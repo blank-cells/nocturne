@@ -36,7 +36,6 @@
     Bell,
     HeartHandshake,
     Plug,
-    Sparkles,
     Calendar,
     CalendarDays,
     BatteryFull,
@@ -49,7 +48,7 @@
     Layers,
     ShieldCheck,
     Building2,
-    Luggage,
+    Wrench,
     HeartPulse,
     ListChecks,
     Shield,
@@ -243,9 +242,9 @@
     },
     {
       title: "Tools",
-      icon: Luggage,
+      icon: Wrench,
       children: [
-        { title: "Packing", href: "/tools/packing", icon: Luggage },
+        { title: "Packing", href: "/tools/packing", icon: Wrench },
       ],
     },
     ];
@@ -289,7 +288,6 @@
         },
         { title: "Appearance", href: "/settings/appearance", icon: Palette },
         { title: "Therapy", href: "/settings/profile", icon: Syringe },
-        { title: "Features", href: "/settings/features", icon: Sparkles },
         {
           title: "Data Quality",
           href: "/settings/data-quality",
