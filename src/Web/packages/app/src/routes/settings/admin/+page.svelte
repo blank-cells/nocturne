@@ -17,6 +17,7 @@
   import {
     Shield,
     Users,
+    Key,
     KeyRound,
     Plus,
     Pencil,
@@ -25,6 +26,7 @@
     AlertTriangle,
     Copy,
     Check,
+    Lock,
     User,
     Cpu,
     Globe,
@@ -33,9 +35,14 @@
     Monitor,
   } from "lucide-svelte";
   import * as Alert from "$lib/components/ui/alert";
-  import * as authorizationRemote from "$api/generated/authorizations.generated.remote";
-  import * as grantsRemote from "$api/generated/oauths.generated.remote";
-  import type { Subject, Role, OAuthGrantDto } from "$api";
+  import * as authorizationRemote from "$lib/data/generated/authorizations.generated.remote";
+  import * as adminRemote from "$lib/data/generated/localauths.generated.remote";
+  import * as grantsRemote from "$lib/data/oauth.remote";
+  import { getRealtimeStore } from "$lib/stores/realtime-store.svelte";
+  import type { Subject, Role, PasswordResetRequestDto, OAuthGrantDto } from "$api";
+
+  // Get the realtime store for reactive admin events
+  const realtimeStore = getRealtimeStore();
 
   // State
   let activeTab = $state("users");
@@ -53,11 +60,7 @@
   let subjectFormName = $state("");
   let subjectFormNotes = $state("");
   let subjectFormRoles = $state<string[]>([]);
-
-  // Form instances for subject create/update
-  const createSubjectForm = authorizationRemote.createSubject;
-  const updateSubjectForm = authorizationRemote.updateSubject;
-  const subjectSaving = $derived(createSubjectForm.pending > 0 || updateSubjectForm.pending > 0);
+  let subjectSaving = $state(false);
 
   // Role dialog state
   let isRoleDialogOpen = $state(false);
@@ -70,6 +73,20 @@
   let roleSaving = $state(false);
   let roleCreatedFromSubjectDialog = $state(false); // Track if we opened role dialog from subject dialog
 
+  // Password reset state
+  let pendingResets = $state<PasswordResetRequestDto[]>([]);
+  let pendingResetCount = $state(0);
+
+  // Set password dialog state
+  let isSetPasswordDialogOpen = $state(false);
+  let selectedResetRequest = $state<PasswordResetRequestDto | null>(null);
+  let tempPassword = $state("");
+  let setPasswordSaving = $state(false);
+
+  // Reset link dialog state
+  let isResetLinkDialogOpen = $state(false);
+  let generatedResetLink = $state("");
+  let resetLinkCopied = $state(false);
 
   // Derived: check if admin role is selected (shows warning)
   const hasAdminRoleSelected = $derived(
@@ -90,19 +107,23 @@
 
   // Derived counts
   const subjectCount = $derived(subjects.length);
+  const roleCount = $derived(roles.length);
 
   // Load data
   async function loadData() {
     loading = true;
     error = null;
     try {
-      const [subs, rols, grantsList] = await Promise.all([
+      const [subs, rols, resetSummary, grantsList] = await Promise.all([
         authorizationRemote.getAllSubjects(),
         authorizationRemote.getAllRoles(),
+        adminRemote.getPendingPasswordResets(),
         loadAllGrants(),
       ]);
       subjects = subs || [];
       roles = rols || [];
+      pendingResets = resetSummary?.requests ?? [];
+      pendingResetCount = resetSummary?.totalCount ?? 0;
       grants = grantsList;
     } catch (err) {
       console.error("Failed to load admin data:", err);
@@ -127,6 +148,16 @@
   // Initial load
   $effect(() => {
     loadData();
+  });
+
+  // Reload password resets when counter changes (via SignalR through realtime store)
+  $effect(() => {
+    // Track the counter to trigger reload
+    const _count = realtimeStore.passwordResetRequestCount;
+    // Skip initial load (handled by loadData)
+    if (_count > 0) {
+      loadPasswordResets();
+    }
   });
 
   // Format date
@@ -184,9 +215,30 @@
     isSubjectDialogOpen = true;
   }
 
-  async function onSubjectSaved() {
-    isSubjectDialogOpen = false;
-    await loadData();
+  async function saveSubject() {
+    subjectSaving = true;
+    try {
+      if (isNewSubject) {
+        await authorizationRemote.createSubject({
+          name: subjectFormName,
+          roles: subjectFormRoles,
+          notes: subjectFormNotes || undefined,
+        });
+      } else if (editingSubject?.id) {
+        await authorizationRemote.updateSubject({
+          id: editingSubject.id,
+          name: subjectFormName,
+          roles: subjectFormRoles,
+          notes: subjectFormNotes || undefined,
+        });
+      }
+      isSubjectDialogOpen = false;
+      await loadData();
+    } catch (err) {
+      console.error("Failed to save subject:", err);
+    } finally {
+      subjectSaving = false;
+    }
   }
 
   async function deleteSubjectHandler(id: string) {
@@ -228,6 +280,16 @@
     openNewRole(true);
   }
 
+  function openEditRole(role: Role) {
+    isNewRole = false;
+    editingRole = role;
+    roleFormName = role.name || "";
+    roleFormNotes = role.notes || "";
+    roleFormPermissions = role.permissions || [];
+    customPermission = "";
+    isRoleDialogOpen = true;
+  }
+
   async function saveRole() {
     roleSaving = true;
     const wasFromSubjectDialog = roleCreatedFromSubjectDialog;
@@ -264,6 +326,16 @@
     }
   }
 
+  async function deleteRoleHandler(id: string) {
+    if (!confirm("Delete this role? This action cannot be undone.")) return;
+    try {
+      await authorizationRemote.deleteRole(id);
+      await loadData();
+    } catch (err) {
+      console.error("Failed to delete role:", err);
+    }
+  }
+
   function togglePermission(permission: string) {
     if (roleFormPermissions.includes(permission)) {
       roleFormPermissions = roleFormPermissions.filter((p) => p !== permission);
@@ -289,7 +361,7 @@
   async function revokeGrant(grantId: string) {
     if (!confirm("Revoke device access? This will log out the device and require re-authorization.")) return;
     try {
-      await grantsRemote.deleteGrant(grantId);
+      await grantsRemote.revokeGrant({ grantId });
       await loadData();
     } catch (err) {
       console.error("Failed to revoke grant:", err);
@@ -320,6 +392,65 @@
         tokenCopied = false;
       }, 2000);
     }
+  }
+
+  // ============================================================================
+  // Password reset handlers
+  // ============================================================================
+
+  async function loadPasswordResets() {
+    try {
+      const response = await adminRemote.getPendingPasswordResets();
+      pendingResets = response?.requests ?? [];
+      pendingResetCount = response?.totalCount ?? 0;
+    } catch (err) {
+      console.error("Failed to load password resets:", err);
+    }
+  }
+
+  function openSetPasswordDialog(request: PasswordResetRequestDto) {
+    selectedResetRequest = request;
+    tempPassword = "";
+    isSetPasswordDialogOpen = true;
+  }
+
+  async function handleSetPassword() {
+    if (!selectedResetRequest?.email) return;
+    setPasswordSaving = true;
+    try {
+      await adminRemote.setTemporaryPassword({
+        email: selectedResetRequest.email,
+        temporaryPassword: tempPassword,
+      });
+      isSetPasswordDialogOpen = false;
+      await loadPasswordResets();
+    } catch (err) {
+      console.error("Failed to set temporary password:", err);
+    } finally {
+      setPasswordSaving = false;
+    }
+  }
+
+  async function generateResetLink(requestId: string | undefined) {
+    if (!requestId) return;
+    try {
+      const result = await adminRemote.handlePasswordReset(requestId);
+      generatedResetLink = result.resetUrl ?? "";
+      resetLinkCopied = false;
+      isResetLinkDialogOpen = true;
+      await loadPasswordResets();
+    } catch (err) {
+      console.error("Failed to generate reset link:", err);
+    }
+  }
+
+  async function copyResetLink() {
+    if (!generatedResetLink) return;
+    await navigator.clipboard.writeText(generatedResetLink);
+    resetLinkCopied = true;
+    setTimeout(() => {
+      resetLinkCopied = false;
+    }, 2000);
   }
 
   // Known permission categories for the picker
@@ -388,7 +519,7 @@
   <title>Administration - Settings - Nocturne</title>
 </svelte:head>
 
-<div class="container mx-auto max-w-4xl p-6 space-y-6">
+<div class="container mx-auto p-6 max-w-5xl">
   <!-- Header -->
   <div class="mb-8">
     <div class="flex items-center gap-3 mb-2">
@@ -433,6 +564,15 @@
           Connected Devices
           {#if grants.length > 0}
             <Badge variant="secondary" class="ml-1">{grants.length}</Badge>
+          {/if}
+        </Tabs.Trigger>
+        <Tabs.Trigger value="password-resets" class="gap-2">
+          <Lock class="h-4 w-4" />
+          Password Resets
+          {#if pendingResetCount > 0}
+            <Badge variant="destructive" class="ml-1">
+              {pendingResetCount}
+            </Badge>
           {/if}
         </Tabs.Trigger>
       </Tabs.List>
@@ -501,9 +641,9 @@
                           <div class="text-sm text-muted-foreground">
                             Defines what unauthenticated users can access
                           </div>
-                        {:else if subject.notes}
+                        {:else if subject.email}
                           <div class="text-sm text-muted-foreground">
-                            {subject.notes}
+                            {subject.email}
                           </div>
                         {/if}
                         <div class="text-sm text-muted-foreground">
@@ -608,7 +748,7 @@
                             {/if}
                           </div>
                           <div class="text-sm text-muted-foreground">
-                            Scopes: {(grant.scopes ?? []).join(", ")}
+                            Scopes: {grant.scopes.join(", ")}
                           </div>
                           <div class="text-xs text-muted-foreground mt-1">
                             Created: {formatDate(grant.createdAt)}
@@ -622,7 +762,7 @@
                         <Button
                           variant="ghost"
                           size="icon"
-                          onclick={() => revokeGrant(grant.id!)}
+                          onclick={() => revokeGrant(grant.id)}
                         >
                           <Trash2 class="h-4 w-4" />
                         </Button>
@@ -670,6 +810,69 @@
         </Card>
       </Tabs.Content>
 
+      <!-- Password Resets Tab -->
+      <Tabs.Content value="password-resets">
+        <Card>
+          <CardHeader>
+            <CardTitle>Pending Password Resets</CardTitle>
+            <CardDescription>
+              Review password reset requests and provide temporary access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {#if pendingResets.length === 0}
+              <div class="text-center py-8 text-muted-foreground">
+                <Lock class="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No pending password reset requests</p>
+              </div>
+            {:else}
+              <div class="space-y-3">
+                {#each pendingResets as request}
+                  <div
+                    class="flex items-center justify-between p-4 rounded-lg border"
+                  >
+                    <div class="flex items-center gap-3">
+                      <div class="p-2 rounded-lg bg-muted">
+                        <Lock class="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div class="font-medium">
+                          {request.displayName ?? request.email}
+                        </div>
+                        <div class="text-sm text-muted-foreground">
+                          {request.email}
+                        </div>
+                        <div class="text-xs text-muted-foreground mt-1">
+                          Requested: {formatDate(request.createdAt)}
+                          {#if request.requestedFromIp}
+                            IP: {request.requestedFromIp}
+                          {/if}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => openSetPasswordDialog(request)}
+                      >
+                        Set Password
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onclick={() => generateResetLink(request.id)}
+                      >
+                        Generate Link
+                      </Button>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </CardContent>
+        </Card>
+      </Tabs.Content>
     </Tabs.Root>
   {/if}
 </div>
@@ -688,227 +891,101 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    {#if isNewSubject}
-    <form
-      {...createSubjectForm.enhance(async ({ submit }) => {
-        await submit();
-        if (createSubjectForm.result) {
-          await onSubjectSaved();
-        }
-      })}
-    >
-      <div class="space-y-4 py-4">
-        <div class="space-y-2">
-          <Label for="subject-name">Name</Label>
-          <Input
-            id="subject-name"
-            name="name"
-            bind:value={subjectFormName}
-            placeholder="e.g., My Loop App"
-          />
-        </div>
-
-        <div class="space-y-2">
-          <Label for="subject-notes">Notes (optional)</Label>
-          <Textarea
-            id="subject-notes"
-            name="notes"
-            bind:value={subjectFormNotes}
-            placeholder="Description or notes about this subject"
-            rows={2}
-          />
-        </div>
-
-        {#each subjectFormRoles as roleName}
-          <input type="hidden" name="roles[]" value={roleName} />
-        {/each}
-
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <Label>Roles</Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onclick={openNewRoleFromSubjectDialog}
-              class="text-xs h-7"
-            >
-              <Plus class="h-3 w-3 mr-1" />
-              Create New Role
-            </Button>
-          </div>
-          <div
-            class="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-muted/50"
-          >
-            {#if roles.length === 0}
-              <p class="text-sm text-muted-foreground">No roles available</p>
-            {:else}
-              {#each roles as role}
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={subjectFormRoles.includes(role.name)}
-                    onCheckedChange={() => toggleSubjectRole(role.name)}
-                  />
-                  <span class="text-sm">{role.name}</span>
-                  {#if role.autoGenerated}
-                    <Badge variant="secondary" class="text-xs">System</Badge>
-                  {/if}
-                </label>
-              {/each}
-            {/if}
-          </div>
-          <p class="text-xs text-muted-foreground">
-            For fine-grained access control, create a custom role with only the
-            necessary permissions.
-          </p>
-        </div>
-
-        {#if hasAdminRoleSelected}
-          <Alert.Root variant="destructive">
-            <TriangleAlert class="h-4 w-4" />
-            <Alert.Title>Full Admin Access</Alert.Title>
-            <Alert.Description>
-              The selected role(s) grant complete control of this Nocturne
-              instance, including the ability to create and delete other subjects,
-              modify all data, and change system settings. Only assign this to
-              trusted subjects.
-            </Alert.Description>
-          </Alert.Root>
-        {/if}
+    <div class="space-y-4 py-4">
+      <div class="space-y-2">
+        <Label for="subject-name">Name</Label>
+        <Input
+          id="subject-name"
+          bind:value={subjectFormName}
+          placeholder="e.g., John Doe"
+        />
       </div>
 
-      <Dialog.Footer>
-        <Button
-          type="button"
-          variant="outline"
-          onclick={() => (isSubjectDialogOpen = false)}
-          disabled={subjectSaving}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={!subjectFormName || subjectSaving}
-        >
-          {#if subjectSaving}
-            <Loader2 class="h-4 w-4 mr-2 animate-spin" />
-          {/if}
-          Create
-        </Button>
-      </Dialog.Footer>
-    </form>
-    {:else}
-    <form
-      {...updateSubjectForm.enhance(async ({ submit }) => {
-        await submit();
-        if (updateSubjectForm.result) {
-          await onSubjectSaved();
-        }
-      })}
-    >
-      <input type="hidden" name="id" value={editingSubject?.id ?? ""} />
-      <div class="space-y-4 py-4">
-        <div class="space-y-2">
-          <Label for="subject-name">Name</Label>
-          <Input
-            id="subject-name"
-            name="name"
-            bind:value={subjectFormName}
-            placeholder="e.g., My Loop App"
-          />
-        </div>
-
-
-        <div class="space-y-2">
-          <Label for="subject-notes">Notes (optional)</Label>
-          <Textarea
-            id="subject-notes"
-            name="notes"
-            bind:value={subjectFormNotes}
-            placeholder="Description or notes about this subject"
-            rows={2}
-          />
-        </div>
-
-        {#each subjectFormRoles as roleName}
-          <input type="hidden" name="roles[]" value={roleName} />
-        {/each}
-
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <Label>Roles</Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onclick={openNewRoleFromSubjectDialog}
-              class="text-xs h-7"
-            >
-              <Plus class="h-3 w-3 mr-1" />
-              Create New Role
-            </Button>
-          </div>
-          <div
-            class="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2 bg-muted/50"
-          >
-            {#if roles.length === 0}
-              <p class="text-sm text-muted-foreground">No roles available</p>
-            {:else}
-              {#each roles as role}
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={subjectFormRoles.includes(role.name)}
-                    onCheckedChange={() => toggleSubjectRole(role.name)}
-                  />
-                  <span class="text-sm">{role.name}</span>
-                  {#if role.autoGenerated}
-                    <Badge variant="secondary" class="text-xs">System</Badge>
-                  {/if}
-                </label>
-              {/each}
-            {/if}
-          </div>
-          <p class="text-xs text-muted-foreground">
-            For fine-grained access control, create a custom role with only the
-            necessary permissions.
-          </p>
-        </div>
-
-        {#if hasAdminRoleSelected}
-          <Alert.Root variant="destructive">
-            <TriangleAlert class="h-4 w-4" />
-            <Alert.Title>Full Admin Access</Alert.Title>
-            <Alert.Description>
-              The selected role(s) grant complete control of this Nocturne
-              instance, including the ability to create and delete other subjects,
-              modify all data, and change system settings. Only assign this to
-              trusted subjects.
-            </Alert.Description>
-          </Alert.Root>
-        {/if}
+      <div class="space-y-2">
+        <Label for="subject-notes">Notes (optional)</Label>
+        <Textarea
+          id="subject-notes"
+          bind:value={subjectFormNotes}
+          placeholder="Additional information about this user"
+          rows={2}
+        />
       </div>
 
-      <Dialog.Footer>
-        <Button
-          type="button"
-          variant="outline"
-          onclick={() => (isSubjectDialogOpen = false)}
-          disabled={subjectSaving}
+      <div class="space-y-2">
+        <Label>Roles</Label>
+        <div
+          class="border rounded-lg p-3 space-y-2 bg-muted/50"
         >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={!subjectFormName || subjectSaving}
-        >
-          {#if subjectSaving}
-            <Loader2 class="h-4 w-4 mr-2 animate-spin" />
+          {#if roles.length === 0}
+            <p class="text-sm text-muted-foreground">No roles available</p>
+          {:else}
+            <!-- Show predefined roles first -->
+            {#each roles.filter(r => r.autoGenerated) as role}
+              <label class="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  checked={subjectFormRoles.includes(role.name)}
+                  onCheckedChange={() => toggleSubjectRole(role.name)}
+                />
+                <div class="flex-1">
+                  <span class="text-sm font-medium">{role.name}</span>
+                  <Badge variant="secondary" class="text-xs ml-2">Predefined</Badge>
+                </div>
+              </label>
+            {/each}
+
+            <!-- Show custom roles if any -->
+            {#if roles.filter(r => !r.autoGenerated).length > 0}
+              <div class="pt-2 border-t">
+                <p class="text-xs text-muted-foreground mb-2">Custom Roles</p>
+                {#each roles.filter(r => !r.autoGenerated) as role}
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      checked={subjectFormRoles.includes(role.name)}
+                      onCheckedChange={() => toggleSubjectRole(role.name)}
+                    />
+                    <span class="text-sm">{role.name}</span>
+                  </label>
+                {/each}
+              </div>
+            {/if}
           {/if}
-          Save
-        </Button>
-      </Dialog.Footer>
-    </form>
-    {/if}
+        </div>
+        <p class="text-xs text-muted-foreground">
+          Use predefined roles for standard access levels. OAuth scopes provide fine-grained device permissions.
+        </p>
+      </div>
+
+      {#if hasAdminRoleSelected}
+        <Alert.Root variant="destructive">
+          <TriangleAlert class="h-4 w-4" />
+          <Alert.Title>Full Admin Access</Alert.Title>
+          <Alert.Description>
+            This user will have complete control of this Nocturne instance,
+            including the ability to manage other users, modify all data,
+            and change system settings. Only assign admin access to trusted users.
+          </Alert.Description>
+        </Alert.Root>
+      {/if}
+    </div>
+
+    <Dialog.Footer>
+      <Button
+        variant="outline"
+        onclick={() => (isSubjectDialogOpen = false)}
+        disabled={subjectSaving}
+      >
+        Cancel
+      </Button>
+      <Button
+        onclick={saveSubject}
+        disabled={!subjectFormName || subjectSaving}
+      >
+        {#if subjectSaving}
+          <Loader2 class="h-4 w-4 mr-2 animate-spin" />
+        {/if}
+        {isNewSubject ? "Create" : "Save"}
+      </Button>
+    </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
 
@@ -1099,3 +1176,84 @@
   </Dialog.Content>
 </Dialog.Root>
 
+<!-- Set Password Dialog -->
+<Dialog.Root bind:open={isSetPasswordDialogOpen}>
+  <Dialog.Content class="max-w-md">
+    <Dialog.Header>
+      <Dialog.Title>Set Temporary Password</Dialog.Title>
+      <Dialog.Description>
+        Set a temporary password for {selectedResetRequest?.email}. They will be
+        required to change it on next login.
+      </Dialog.Description>
+    </Dialog.Header>
+
+    <div class="space-y-4 py-4">
+      <div class="space-y-2">
+        <Label for="temp-password">Temporary Password</Label>
+        <Input
+          id="temp-password"
+          type="text"
+          bind:value={tempPassword}
+          placeholder="Leave empty for no password"
+        />
+        <p class="text-xs text-muted-foreground">
+          Leave empty to allow login with no password. The user must set a new
+          password on their next login.
+        </p>
+      </div>
+    </div>
+
+    <Dialog.Footer>
+      <Button
+        variant="outline"
+        onclick={() => (isSetPasswordDialogOpen = false)}
+        disabled={setPasswordSaving}
+      >
+        Cancel
+      </Button>
+      <Button onclick={handleSetPassword} disabled={setPasswordSaving}>
+        {#if setPasswordSaving}
+          <Loader2 class="h-4 w-4 mr-2 animate-spin" />
+        {/if}
+        Set Password
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>
+
+<!-- Reset Link Dialog -->
+<Dialog.Root bind:open={isResetLinkDialogOpen}>
+  <Dialog.Content class="max-w-lg">
+    <Dialog.Header>
+      <Dialog.Title>Password Reset Link</Dialog.Title>
+      <Dialog.Description>
+        Share this link securely with the user.
+      </Dialog.Description>
+    </Dialog.Header>
+
+    <div class="space-y-4 py-4">
+      <div class="p-4 rounded-lg bg-muted font-mono text-sm break-all">
+        {generatedResetLink}
+      </div>
+      <Button
+        class="w-full"
+        onclick={copyResetLink}
+        disabled={!generatedResetLink}
+      >
+        {#if resetLinkCopied}
+          <Check class="h-4 w-4 mr-2" />
+          Copied!
+        {:else}
+          <Copy class="h-4 w-4 mr-2" />
+          Copy to Clipboard
+        {/if}
+      </Button>
+    </div>
+
+    <Dialog.Footer>
+      <Button variant="outline" onclick={() => (isResetLinkDialogOpen = false)}>
+        Close
+      </Button>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>

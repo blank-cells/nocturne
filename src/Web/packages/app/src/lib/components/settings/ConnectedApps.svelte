@@ -13,7 +13,7 @@
     Plus,
   } from "lucide-svelte";
   import { formatDate } from "$lib/utils/formatting";
-  import { getGrants, deleteGrant } from "$lib/api/generated/oauths.generated.remote";
+  import { getGrants, revokeGrant } from "$lib/data/oauth.remote";
 
   /** Human-readable descriptions for each OAuth scope. */
   const scopeDescriptions: Record<string, string> = {
@@ -38,7 +38,7 @@
   const grantsQuery = $derived(getGrants());
 
   // Derived data from queries
-  const grants = $derived(grantsQuery.current?.grants ?? []);
+  const grants = $derived(grantsQuery.current ?? []);
   const appGrants = $derived(grants.filter((g) => g.grantType === "app"));
 
   // Loading/error states
@@ -59,7 +59,7 @@
     isRevoking = grantId;
     errorMessage = null;
     try {
-      await deleteGrant(grantId);
+      await revokeGrant({ grantId });
       successMessage = "App access revoked successfully.";
       clearMessages();
     } catch (err) {

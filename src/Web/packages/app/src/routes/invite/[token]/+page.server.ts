@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const { apiClient } = locals;
 
   try {
-    const invite = await apiClient.memberInvites.getInviteInfo(token);
+    const invite = await apiClient.oauth.getInviteInfo(token);
 
     return {
       invite,
@@ -34,7 +34,7 @@ export const actions: Actions = {
     const { apiClient } = locals;
 
     try {
-      await apiClient.memberInvites.acceptInvite(token);
+      await apiClient.oauth.acceptInvite(token);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to accept invite.";

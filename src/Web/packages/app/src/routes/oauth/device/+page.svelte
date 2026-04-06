@@ -39,7 +39,7 @@
     "*": "Full access including delete",
   };
 
-  let codeInput = $state<string>(data.prefilledCode ?? "");
+  let codeInput = $state(data.prefilledCode ?? "");
 
   // Get device info from lookup form result
   const deviceInfo = $derived(
