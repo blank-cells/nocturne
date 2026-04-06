@@ -138,6 +138,28 @@ Domain models use **mills-first** timestamps. `Entry.Mills` (Unix milliseconds) 
 - **SvelteKit 2** / **Svelte 5** (runes), **Tailwind CSS 4**, **shadcn-svelte**, **layerchart**, **Zod 4**
 - **pnpm** workspaces (Node.js 24+, pnpm 9+)
 
+## Local Container Build
+
+```bash
+# Full build (both containers, no push)
+./scripts/build.sh
+
+# Build with a specific tag
+./scripts/build.sh v1.2.3
+
+# Build and push to registry (requires docker login)
+./scripts/build.sh latest --push
+
+# Skip one container for faster iteration
+SKIP_WEB=true ./scripts/build.sh
+SKIP_API=true ./scripts/build.sh
+
+# Test just the web Dockerfile independently
+docker buildx build --file Dockerfile.web --load .
+```
+
+`scripts/build.sh` mirrors the CI pipeline locally: restores .NET, generates the API client (NSwag + Zod + remote codegen), verifies generated files, and builds both containers. Without `--push`, images are loaded into the local Docker daemon.
+
 ## Code Style Requirements
 
 - **Backend is source of truth.** No calculations, categorization, or color computation on the frontend.

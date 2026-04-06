@@ -84,18 +84,12 @@ jobs:
       - name: Restore .NET dependencies
         run: dotnet restore
 
-      # Copy appsettings.example.json to appsettings.json for NSwag client generation
-      # The actual values don't matter for NSwag - it just needs the file to exist
-      # to satisfy the Program.cs configuration loading during OpenAPI schema extraction
       - name: Setup appsettings.json for NSwag
         run: cp appsettings.example.json appsettings.json
 
       # Generate API client, Zod schemas, and remote functions for the web build.
-      # These files are gitignored (regenerated on every build) so we must produce
-      # them here before the Docker build which needs them.
-      # IMPORTANT: This must run BEFORE dotnet publish, because publish marks the
-      # build outputs as up-to-date, causing a subsequent dotnet build to skip
-      # the post-build generation targets (NSwag, Zod, remote codegen).
+      # IMPORTANT: Must run BEFORE dotnet publish (publish marks outputs as
+      # up-to-date, causing post-build generation targets to be skipped).
       - name: Generate API client for web build
         working-directory: src/API/Nocturne.API
         run: dotnet build -c Release
@@ -109,8 +103,6 @@ jobs:
           fi
           echo "Generated API client files found ($(ls src/Web/packages/app/src/lib/api/generated/*.generated.remote.ts | wc -l) remote files)"
 
-      # Build container images using .NET's built-in container support
-      # Aspire projects are standard .NET projects that can be published as containers
       - name: Build and push Nocturne.API container
         if: github.event_name != 'pull_request' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)
         working-directory: src/API/Nocturne.API
@@ -122,81 +114,9 @@ jobs:
             -p:ContainerRepository=${{ env.IMAGE_REPOSITORY }}/nocturne-api \
             -p:ContainerImageTag=${{ steps.version.outputs.version }}
 
-      # Build web app using standard Docker build (Node.js/Vite apps don't use .NET container publishing)
       - name: Build and push Nocturne.Web container
         if: github.event_name != 'pull_request' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)
         run: |
-          # Create optimized Dockerfile for SvelteKit production build
-          cat > Dockerfile.web << 'EOF'
-          FROM node:24-alpine AS builder
-          WORKDIR /app
-          # Increase Node.js heap size to avoid "JavaScript heap out of memory" in CI
-          ENV NODE_OPTIONS="--max-old-space-size=8192"
-
-          RUN npm install -g pnpm@9
-
-          # Copy workspace files
-          COPY src/Web/package.json src/Web/pnpm-lock.yaml src/Web/pnpm-workspace.yaml ./
-          COPY src/Web/supportedLocales.json ./
-          COPY src/Web/locales ./locales
-          COPY src/Web/packages ./packages
-
-          # Install dependencies
-          RUN pnpm install --frozen-lockfile
-
-          # Build workspace packages required by app
-          RUN pnpm --filter @nocturne/bridge run build
-          RUN pnpm --filter @nocturne/bot run build
-
-          # Set default build-time environment variables for SvelteKit
-          ENV PUBLIC_API_URL=http://localhost:1612
-          ENV PUBLIC_WEBSOCKET_RECONNECT_ATTEMPTS=5
-          ENV PUBLIC_WEBSOCKET_RECONNECT_DELAY=1000
-          ENV PUBLIC_WEBSOCKET_MAX_RECONNECT_DELAY=30000
-          ENV PUBLIC_WEBSOCKET_PING_TIMEOUT=15000
-          ENV PUBLIC_WEBSOCKET_PING_INTERVAL=20000
-
-          # Build the app
-          RUN pnpm --filter @nocturne/app run build
-
-          FROM node:24-alpine
-          WORKDIR /app
-
-          RUN npm install -g pnpm@9
-
-          # Copy workspace structure
-          COPY --from=builder /app/package.json ./
-          COPY --from=builder /app/pnpm-lock.yaml ./
-          COPY --from=builder /app/pnpm-workspace.yaml ./
-          COPY --from=builder /app/packages/app/package.json ./packages/app/
-          COPY --from=builder /app/packages/bridge/package.json ./packages/bridge/
-          COPY --from=builder /app/packages/bridge/dist ./packages/bridge/dist
-
-          # Install only runtime dependencies required by the app workspace package.
-          # This ensures server-side imports (e.g. zod) are installed in packages/app/node_modules
-          # where the adapter-node build resolves modules at runtime.
-          RUN pnpm install --prod --frozen-lockfile --filter @nocturne/app...
-
-          # Run from the app package directory so Node resolves dependencies from
-          # /app/packages/app/node_modules instead of relying on root hoisting.
-          WORKDIR /app/packages/app
-
-          # Copy built artifacts
-          COPY --from=builder /app/packages/app/build ./build
-
-          # Copy custom server that integrates WebSocket bridge
-          COPY --from=builder /app/packages/app/server.js ./server.js
-
-          # Smoke test critical runtime imports used by SvelteKit server chunks.
-          RUN node -e "import('zod'); import('@nocturne/bridge')"
-
-          ENV NODE_ENV=production
-          ENV PORT=5173
-          EXPOSE 5173
-
-          CMD ["node", "server.js"]
-          EOF
-
           docker buildx build \
             --platform linux/amd64 \
             --tag ${{ env.REGISTRY }}/${{ env.IMAGE_REPOSITORY }}/nocturne-web:${{ steps.version.outputs.version }} \
