@@ -1,5 +1,7 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -7,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Nocturne.API.Middleware;
 using Nocturne.API.Middleware.Handlers;
+using Nocturne.API.Services.Auth;
 using Nocturne.Core.Models.Authorization;
 using Nocturne.Core.Models.Configuration;
 using Xunit;
@@ -83,12 +86,19 @@ public class AuthHandlerPriorityTests
                 Roles = ["admin"],
             }));
 
+        var publicAccessCacheService = new PublicAccessCacheService(
+            new MemoryCache(new MemoryCacheOptions()),
+            Mock.Of<IDbContextFactory<Nocturne.Infrastructure.Data.NocturneDbContext>>(),
+            NullLogger<PublicAccessCacheService>.Instance);
+
         var middleware = new AuthenticationMiddleware(
             next: _ => Task.CompletedTask,
             logger: NullLogger<AuthenticationMiddleware>.Instance,
             handlers: [instanceKeyHandler, sessionHandler],
             environment: Mock.Of<IHostEnvironment>(e =>
-                e.EnvironmentName == "Production"));
+                e.EnvironmentName == "Production"),
+            publicAccessCacheService: publicAccessCacheService,
+            oidcOptions: Options.Create(new OidcOptions()));
 
         var httpContext = new DefaultHttpContext();
         await middleware.InvokeAsync(httpContext);
@@ -121,12 +131,19 @@ public class AuthHandlerPriorityTests
                 Roles = ["admin"],
             }));
 
+        var publicAccessCacheService = new PublicAccessCacheService(
+            new MemoryCache(new MemoryCacheOptions()),
+            Mock.Of<IDbContextFactory<Nocturne.Infrastructure.Data.NocturneDbContext>>(),
+            NullLogger<PublicAccessCacheService>.Instance);
+
         var middleware = new AuthenticationMiddleware(
             next: _ => Task.CompletedTask,
             logger: NullLogger<AuthenticationMiddleware>.Instance,
             handlers: [instanceKeyHandler, sessionHandler],
             environment: Mock.Of<IHostEnvironment>(e =>
-                e.EnvironmentName == "Production"));
+                e.EnvironmentName == "Production"),
+            publicAccessCacheService: publicAccessCacheService,
+            oidcOptions: Options.Create(new OidcOptions()));
 
         var httpContext = new DefaultHttpContext();
         await middleware.InvokeAsync(httpContext);
@@ -158,12 +175,19 @@ public class AuthHandlerPriorityTests
                 Roles = ["admin"],
             }));
 
+        var publicAccessCacheService = new PublicAccessCacheService(
+            new MemoryCache(new MemoryCacheOptions()),
+            Mock.Of<IDbContextFactory<Nocturne.Infrastructure.Data.NocturneDbContext>>(),
+            NullLogger<PublicAccessCacheService>.Instance);
+
         var middleware = new AuthenticationMiddleware(
             next: _ => Task.CompletedTask,
             logger: NullLogger<AuthenticationMiddleware>.Instance,
             handlers: [instanceKeyHandler, sessionHandler],
             environment: Mock.Of<IHostEnvironment>(e =>
-                e.EnvironmentName == "Production"));
+                e.EnvironmentName == "Production"),
+            publicAccessCacheService: publicAccessCacheService,
+            oidcOptions: Options.Create(new OidcOptions()));
 
         var httpContext = new DefaultHttpContext();
         await middleware.InvokeAsync(httpContext);
