@@ -35,6 +35,7 @@ public static class ServiceNames
     public const string TidepoolConnector = "tidepool-connector";
     public const string TConnectSyncConnector = "tconnectsync-connector";
     public const string MyLifeConnector = "mylife-connector";
+    public const string HomeAssistantConnector = "home-assistant-connector";
 
     // Docker Container Names
     public static class Docker
@@ -100,6 +101,7 @@ public static class ServiceNames
         public const string TidepoolPrefix = "Parameters__Connectors__Tidepool__";
         public const string TConnectSyncPrefix = "Parameters__Connectors__TConnectSync__";
         public const string MyLifePrefix = "Parameters__Connectors__MyLife__";
+        public const string HomeAssistantPrefix = "Parameters__Connectors__HomeAssistant__";
     }
 
     /// <summary>

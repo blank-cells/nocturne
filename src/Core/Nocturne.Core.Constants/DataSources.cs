@@ -82,6 +82,11 @@ public static class DataSources
 
     public const string MyLifeConnector = "mylife-connector";
 
+    /// <summary>
+    /// Data synced from Home Assistant via the Home Assistant connector.
+    /// </summary>
+    public const string HomeAssistantConnector = "home-assistant-connector";
+
     // ============================================================================
     // Manual Entry Sources
     // ============================================================================
@@ -194,7 +199,8 @@ public static class DataSources
                 or GlookoConnector
                 or NightscoutConnector
                 or TidepoolConnector
-                or TConnectSyncConnector;
+                or TConnectSyncConnector
+                or HomeAssistantConnector;
     }
 
     /// <summary>
@@ -236,6 +242,7 @@ public static class DataSources
             NightscoutConnector,
             TidepoolConnector,
             TConnectSyncConnector,
+            HomeAssistantConnector,
             XDrip,
             Spike,
             ManualEntry,

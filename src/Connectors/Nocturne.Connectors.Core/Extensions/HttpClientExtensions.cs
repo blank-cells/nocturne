@@ -81,6 +81,24 @@ public static class HttpClientExtensions
         }
 
         /// <summary>
+        ///     Adds a Bearer Authorization header to all requests made by the HttpClient.
+        /// </summary>
+        /// <param name="accessToken">The bearer token value</param>
+        public IHttpClientBuilder AddBearerAuthorization(string accessToken)
+        {
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                builder.ConfigureHttpClient(client =>
+                {
+                    client.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", accessToken);
+                });
+            }
+
+            return builder;
+        }
+
+        /// <summary>
         ///     Configures resilience settings optimized for connector services that make
         ///     multiple sequential API calls. Uses longer timeouts per-request (2 minutes)
         ///     and a longer total timeout (10 minutes) to accommodate sync operations.

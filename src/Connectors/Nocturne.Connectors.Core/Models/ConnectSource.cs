@@ -15,4 +15,5 @@ public enum ConnectSource
     Tidepool,
     MyFitnessPal,
     Nightscout,
+    HomeAssistant,
 }

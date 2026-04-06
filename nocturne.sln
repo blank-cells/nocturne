@@ -120,6 +120,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nocturne.Connectors.Nightsc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nocturne.Core.Models.Tests", "tests\Unit\Nocturne.Core.Models.Tests\Nocturne.Core.Models.Tests.csproj", "{68D4BE32-FCD5-41D3-83D6-0919713A3EF0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nocturne.Connectors.HomeAssistant", "src\Connectors\Nocturne.Connectors.HomeAssistant\Nocturne.Connectors.HomeAssistant.csproj", "{A61524AF-AF0A-4461-8F27-41A025C80736}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nocturne.Connectors.HomeAssistant.Tests", "tests\Unit\Nocturne.Connectors.HomeAssistant.Tests\Nocturne.Connectors.HomeAssistant.Tests.csproj", "{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -550,6 +554,30 @@ Global
 		{68D4BE32-FCD5-41D3-83D6-0919713A3EF0}.Release|x64.Build.0 = Release|Any CPU
 		{68D4BE32-FCD5-41D3-83D6-0919713A3EF0}.Release|x86.ActiveCfg = Release|Any CPU
 		{68D4BE32-FCD5-41D3-83D6-0919713A3EF0}.Release|x86.Build.0 = Release|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Debug|x64.Build.0 = Debug|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Debug|x86.Build.0 = Debug|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Release|x64.ActiveCfg = Release|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Release|x64.Build.0 = Release|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Release|x86.ActiveCfg = Release|Any CPU
+		{A61524AF-AF0A-4461-8F27-41A025C80736}.Release|x86.Build.0 = Release|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Debug|x64.Build.0 = Debug|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Debug|x86.Build.0 = Debug|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Release|x64.ActiveCfg = Release|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Release|x64.Build.0 = Release|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Release|x86.ActiveCfg = Release|Any CPU
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -599,5 +627,7 @@ Global
 		{0950185D-7962-4480-875C-F09E4054FD78} = {237CDB4C-E7C4-795B-969A-4CCB7C8B335B}
 		{DCED5314-B57E-4884-B7CA-A7303E1D0C72} = {237CDB4C-E7C4-795B-969A-4CCB7C8B335B}
 		{68D4BE32-FCD5-41D3-83D6-0919713A3EF0} = {F25A9213-C080-46DC-93A8-09D96E2C55A1}
+		{A61524AF-AF0A-4461-8F27-41A025C80736} = {237CDB4C-E7C4-795B-969A-4CCB7C8B335B}
+		{F84EA2BE-87BD-40D4-8F36-3281EC9DB5EC} = {F25A9213-C080-46DC-93A8-09D96E2C55A1}
 	EndGlobalSection
 EndGlobal
