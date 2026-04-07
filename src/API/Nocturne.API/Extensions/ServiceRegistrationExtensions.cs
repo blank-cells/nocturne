@@ -136,6 +136,7 @@ public static class ServiceRegistrationExtensions
             }
         });
         services.Configure<OidcOptions>(configuration.GetSection(OidcOptions.SectionName));
+        services.Configure<PlatformOptions>(configuration.GetSection(PlatformOptions.SectionName));
         // Auth services
         services.AddScoped<IAuthAuditService, AuthAuditService>();
         services.AddScoped<IJwtService, JwtService>();
