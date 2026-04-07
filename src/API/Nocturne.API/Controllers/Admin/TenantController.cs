@@ -9,9 +9,9 @@ using Nocturne.Infrastructure.Data;
 namespace Nocturne.API.Controllers.Admin;
 
 [ApiController]
-[Route("api/admin/tenants")]
+[Route("api/v4/admin/tenants")]
 [Produces("application/json")]
-[Authorize(Roles = "admin")]
+[Authorize(Roles = "platform_admin")]
 public class TenantController : ControllerBase
 {
     private readonly ITenantService _tenantService;

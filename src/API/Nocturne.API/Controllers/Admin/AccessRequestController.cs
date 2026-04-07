@@ -1,7 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OpenApi.Remote.Attributes;
-using Nocturne.API.Attributes;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Contracts.Multitenancy;
 using Nocturne.Core.Models;
@@ -11,8 +11,8 @@ using Nocturne.Infrastructure.Data;
 namespace Nocturne.API.Controllers.Admin;
 
 [ApiController]
-[Route("api/admin/access-requests")]
-[RequireAdmin]
+[Route("api/v4/admin/access-requests")]
+[Authorize(Roles = "platform_admin")]
 public class AccessRequestController(
     NocturneDbContext dbContext,
     ISubjectService subjectService,
