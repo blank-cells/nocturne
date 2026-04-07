@@ -148,6 +148,7 @@
   }
 
   async function handleTotpLogin() {
+    if (isLoading) return;
     if (!username.trim() || totpCode.length !== 6) {
       errorMessage = "Please enter your username and 6-digit code";
       return;
