@@ -3,6 +3,15 @@ import { createServer } from 'http';
 import { handler } from './build/handler.js';
 import { setupBridge } from '@nocturne/bridge';
 
+// Hardcoded WebSocket bridge tuning. These were previously env vars but are
+// internal implementation details, not per-deployment knobs. Keep in sync
+// with src/lib/config/constants.ts.
+const WEBSOCKET_RECONNECT_ATTEMPTS = 5;
+const WEBSOCKET_RECONNECT_DELAY_MS = 1_000;
+const WEBSOCKET_MAX_RECONNECT_DELAY_MS = 30_000;
+const WEBSOCKET_PING_TIMEOUT_MS = 15_000;
+const WEBSOCKET_PING_INTERVAL_MS = 20_000;
+
 const PORT = process.env.PORT || 5173;
 const API_URL = process.env.NOCTURNE_API_URL || process.env.PUBLIC_API_URL || 'http://localhost:1612';
 const SIGNALR_HUB_URL = `${API_URL}/hubs/data`;
@@ -21,9 +30,9 @@ async function start() {
         hubUrl: SIGNALR_HUB_URL,
         alarmHubUrl: SIGNALR_ALARM_HUB_URL,
         configHubUrl: SIGNALR_CONFIG_HUB_URL,
-        reconnectAttempts: parseInt(process.env.PUBLIC_WEBSOCKET_RECONNECT_ATTEMPTS || '10'),
-        reconnectDelay: parseInt(process.env.PUBLIC_WEBSOCKET_RECONNECT_DELAY || '5000'),
-        maxReconnectDelay: parseInt(process.env.PUBLIC_WEBSOCKET_MAX_RECONNECT_DELAY || '30000'),
+        reconnectAttempts: WEBSOCKET_RECONNECT_ATTEMPTS,
+        reconnectDelay: WEBSOCKET_RECONNECT_DELAY_MS,
+        maxReconnectDelay: WEBSOCKET_MAX_RECONNECT_DELAY_MS,
       },
       socketio: {
         cors: {
@@ -31,8 +40,8 @@ async function start() {
           methods: ['GET', 'POST'],
           credentials: true,
         },
-        pingTimeout: parseInt(process.env.PUBLIC_WEBSOCKET_PING_TIMEOUT || '60000'),
-        pingInterval: parseInt(process.env.PUBLIC_WEBSOCKET_PING_INTERVAL || '25000'),
+        pingTimeout: WEBSOCKET_PING_TIMEOUT_MS,
+        pingInterval: WEBSOCKET_PING_INTERVAL_MS,
       },
       instanceKey: INSTANCE_KEY,
     });

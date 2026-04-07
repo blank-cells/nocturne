@@ -24,6 +24,7 @@ TestResults/
 cloudflared-config.yml
 appsettings.json
 appsettings.*.json
+!appsettings.example.json
 
 # Generated locale files
 **/locales/**/*.js
