@@ -227,7 +227,7 @@
   {@render children()}
 {:else}
   <Sidebar.Provider>
-    <AppSidebar user={data.user} tenantCount={data.tenantCount} effectivePermissions={data.effectivePermissions} />
+    <AppSidebar user={data.user} tenantCount={data.tenantCount} effectivePermissions={data.effectivePermissions} isPlatformAdmin={data.isPlatformAdmin} />
     <MobileHeader />
     <Sidebar.Inset>
       {#if data.isAuthenticated}

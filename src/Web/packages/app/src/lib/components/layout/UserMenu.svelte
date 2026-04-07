@@ -12,9 +12,11 @@
     collapsed?: boolean;
     /** Additional CSS classes */
     class?: string;
+    /** Whether the current user is a platform administrator */
+    isPlatformAdmin?: boolean;
   }
 
-  const { user, collapsed = false, class: className = "" }: Props = $props();
+  const { user, collapsed = false, class: className = "", isPlatformAdmin = false }: Props = $props();
 
   let isOpen = $state(false);
 
@@ -111,7 +113,7 @@
           <Settings class="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenu.Item>
-        {#if user.roles.includes("admin")}
+        {#if isPlatformAdmin}
           <DropdownMenu.Item onSelect={() => goto("/settings/admin")}>
             <Shield class="mr-2 h-4 w-4" />
             <span>Admin</span>

@@ -64,9 +64,11 @@
     tenantCount?: number;
     /** Effective permissions for the current user */
     effectivePermissions?: string[];
+    /** Whether the current user is a platform administrator */
+    isPlatformAdmin?: boolean;
   }
 
-  const { user = null, tenantCount = 0, effectivePermissions = [] }: Props = $props();
+  const { user = null, tenantCount = 0, effectivePermissions = [], isPlatformAdmin = false }: Props = $props();
 
   const canManageRoles = $derived(
     effectivePermissions.includes("roles.manage") ||
@@ -309,11 +311,9 @@
           href: "/settings/support",
           icon: HeartHandshake,
         },
-        {
-          title: "Tenant Management",
-          href: "/settings/admin/tenants",
-          icon: Building2,
-        },
+        ...(isPlatformAdmin
+          ? [{ title: "Tenant Management", href: "/settings/admin/tenants", icon: Building2 }]
+          : []),
       ],
     });
 
@@ -516,6 +516,7 @@
         {/if}
         <UserMenu
           {user}
+          {isPlatformAdmin}
           collapsed={sidebar.state === "collapsed"}
           class="flex-1 min-w-0"
         />

@@ -56,6 +56,10 @@ declare global {
 			 * Effective permissions (granted scopes) for the current user on the current tenant
 			 */
 			effectivePermissions?: string[];
+			/**
+			 * Whether the current user is a platform administrator
+			 */
+			isPlatformAdmin: boolean;
 		}
 
 		// Base page data interface for the main app

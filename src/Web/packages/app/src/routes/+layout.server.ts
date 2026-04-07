@@ -26,5 +26,6 @@ export const load: LayoutServerLoad = async ({ locals, cookies, url }) => {
     user: locals.user,
     isAuthenticated: locals.isAuthenticated,
     effectivePermissions: locals.effectivePermissions ?? [],
+    isPlatformAdmin: locals.isPlatformAdmin,
   };
 };
