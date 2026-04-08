@@ -95,6 +95,8 @@
   "dependencies": {
     "@nocturne/bot": "workspace:*",
     "@nocturne/bridge": "workspace:*",
+    "@opentelemetry/auto-instrumentations-node": "^0.57.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.213.0",
     "@opentelemetry/instrumentation-fetch": "^0.213.0",
     "@opentelemetry/instrumentation-http": "^0.213.0",
     "@opentelemetry/resources": "^2.6.0",
