@@ -1,97 +1,41 @@
+// MIGRATION-IN-PROGRESS: This service is being rewritten as part of the
+// Shared Discord Bot Link Flow consolidation (Task 1.9). The body has been
+// stubbed so the solution still compiles after the old chat_identity_links
+// table was dropped. Do not call any of these methods at runtime.
 using Microsoft.EntityFrameworkCore;
 using Nocturne.Infrastructure.Data;
-using Nocturne.Infrastructure.Data.Entities;
 
 namespace Nocturne.API.Services.Chat;
 
 /// <summary>
 /// Manages chat platform identity links for bot-mediated interactions.
+/// MIGRATION-IN-PROGRESS: stubbed pending rewrite against ChatIdentityDirectory.
 /// </summary>
 public sealed class ChatIdentityService(
     IDbContextFactory<NocturneDbContext> contextFactory,
     ILogger<ChatIdentityService> logger)
 {
-    public async Task<ChatIdentityLinkEntity?> FindByPlatformAsync(
-        Guid tenantId, string platform, string platformUserId, CancellationToken ct)
-    {
-        await using var db = await contextFactory.CreateDbContextAsync(ct);
-        db.TenantId = tenantId;
+    // Reference fields so DI registration and field-suppression analyzers stay happy.
+    private readonly IDbContextFactory<NocturneDbContext> _contextFactory = contextFactory;
+    private readonly ILogger<ChatIdentityService> _logger = logger;
 
-        return await db.ChatIdentityLinks
-            .AsNoTracking()
-            .Where(l => l.Platform == platform && l.PlatformUserId == platformUserId && l.IsActive)
-            .FirstOrDefaultAsync(ct);
-    }
+    public Task<object?> FindByPlatformAsync(
+        Guid tenantId, string platform, string platformUserId, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS: ChatIdentityService will be rewritten in Task 1.9");
 
-    public async Task<IReadOnlyList<ChatIdentityLinkEntity>> GetByUserAsync(
-        Guid tenantId, Guid userId, CancellationToken ct)
-    {
-        await using var db = await contextFactory.CreateDbContextAsync(ct);
-        db.TenantId = tenantId;
+    public Task<IReadOnlyList<object>> GetByUserAsync(
+        Guid tenantId, Guid userId, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS: ChatIdentityService will be rewritten in Task 1.9");
 
-        return await db.ChatIdentityLinks
-            .AsNoTracking()
-            .Where(l => l.NocturneUserId == userId && l.IsActive)
-            .OrderByDescending(l => l.CreatedAt)
-            .ToListAsync(ct);
-    }
+    public Task<IReadOnlyList<object>> GetByTenantAsync(
+        Guid tenantId, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS: ChatIdentityService will be rewritten in Task 1.9");
 
-    public async Task<IReadOnlyList<ChatIdentityLinkEntity>> GetByTenantAsync(
-        Guid tenantId, CancellationToken ct)
-    {
-        await using var db = await contextFactory.CreateDbContextAsync(ct);
-        db.TenantId = tenantId;
-
-        return await db.ChatIdentityLinks
-            .AsNoTracking()
-            .Where(l => l.IsActive)
-            .OrderByDescending(l => l.CreatedAt)
-            .ToListAsync(ct);
-    }
-
-    public async Task<ChatIdentityLinkEntity> CreateLinkAsync(
+    public Task<object> CreateLinkAsync(
         Guid tenantId, Guid userId, string platform, string platformUserId,
-        string? platformChannelId, CancellationToken ct)
-    {
-        await using var db = await contextFactory.CreateDbContextAsync(ct);
-        db.TenantId = tenantId;
+        string? platformChannelId, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS: ChatIdentityService will be rewritten in Task 1.9");
 
-        var entity = new ChatIdentityLinkEntity
-        {
-            Id = Guid.CreateVersion7(),
-            TenantId = tenantId,
-            NocturneUserId = userId,
-            Platform = platform,
-            PlatformUserId = platformUserId,
-            PlatformChannelId = platformChannelId,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-        };
-
-        db.ChatIdentityLinks.Add(entity);
-        await db.SaveChangesAsync(ct);
-
-        logger.LogInformation(
-            "Created chat identity link {LinkId} for user {UserId} on {Platform}",
-            entity.Id, userId, platform);
-
-        return entity;
-    }
-
-    public async Task RevokeLinkAsync(Guid tenantId, Guid linkId, CancellationToken ct)
-    {
-        await using var db = await contextFactory.CreateDbContextAsync(ct);
-        db.TenantId = tenantId;
-
-        var link = await db.ChatIdentityLinks
-            .FirstOrDefaultAsync(l => l.Id == linkId, ct);
-
-        if (link is null) return;
-
-        link.IsActive = false;
-        link.RevokedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-
-        logger.LogInformation("Revoked chat identity link {LinkId}", linkId);
-    }
+    public Task RevokeLinkAsync(Guid tenantId, Guid linkId, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS: ChatIdentityService will be rewritten in Task 1.9");
 }

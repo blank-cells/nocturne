@@ -1,3 +1,6 @@
+// MIGRATION-IN-PROGRESS: This controller is being rewritten as part of the
+// Shared Discord Bot Link Flow consolidation (Task 1.9). All actions throw
+// NotImplementedException pending the rewrite against ChatIdentityDirectory.
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenApi.Remote.Attributes;
@@ -8,6 +11,7 @@ namespace Nocturne.API.Controllers.V4;
 
 /// <summary>
 /// Manages chat platform identity links for bot-mediated alert delivery and glucose queries.
+/// MIGRATION-IN-PROGRESS: stubbed pending rewrite.
 /// </summary>
 [ApiController]
 [Authorize]
@@ -32,23 +36,8 @@ public class ChatIdentityController : ControllerBase
     [HttpGet]
     [RemoteQuery]
     [ProducesResponseType(typeof(List<ChatIdentityLinkResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<ChatIdentityLinkResponse>>> GetLinks(CancellationToken ct)
-    {
-        var tenantId = _tenantAccessor.TenantId;
-
-        var links = await _chatIdentityService.GetByTenantAsync(tenantId, ct);
-        return Ok(links.Select(l => new ChatIdentityLinkResponse
-        {
-            Id = l.Id,
-            NocturneUserId = l.NocturneUserId,
-            Platform = l.Platform,
-            PlatformUserId = l.PlatformUserId,
-            PlatformChannelId = l.PlatformChannelId,
-            DisplayUnit = l.DisplayUnit,
-            IsActive = l.IsActive,
-            CreatedAt = l.CreatedAt,
-        }).ToList());
-    }
+    public Task<ActionResult<List<ChatIdentityLinkResponse>>> GetLinks(CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS");
 
     /// <summary>
     /// Create a new chat identity link.
@@ -56,33 +45,9 @@ public class ChatIdentityController : ControllerBase
     [HttpPost]
     [RemoteCommand(Invalidates = ["GetLinks"])]
     [ProducesResponseType(typeof(ChatIdentityLinkResponse), StatusCodes.Status201Created)]
-    public async Task<ActionResult<ChatIdentityLinkResponse>> CreateLink(
-        [FromBody] CreateChatIdentityLinkRequest request, CancellationToken ct)
-    {
-        var tenantId = _tenantAccessor.TenantId;
-
-        var entity = await _chatIdentityService.CreateLinkAsync(
-            tenantId,
-            request.NocturneUserId,
-            request.Platform,
-            request.PlatformUserId,
-            request.PlatformChannelId,
-            ct);
-
-        var response = new ChatIdentityLinkResponse
-        {
-            Id = entity.Id,
-            NocturneUserId = entity.NocturneUserId,
-            Platform = entity.Platform,
-            PlatformUserId = entity.PlatformUserId,
-            PlatformChannelId = entity.PlatformChannelId,
-            DisplayUnit = entity.DisplayUnit,
-            IsActive = entity.IsActive,
-            CreatedAt = entity.CreatedAt,
-        };
-
-        return CreatedAtAction(nameof(GetLinks), response);
-    }
+    public Task<ActionResult<ChatIdentityLinkResponse>> CreateLink(
+        [FromBody] CreateChatIdentityLinkRequest request, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS");
 
     /// <summary>
     /// Revoke (soft-delete) a chat identity link.
@@ -90,42 +55,19 @@ public class ChatIdentityController : ControllerBase
     [HttpDelete("{id:guid}")]
     [RemoteCommand(Invalidates = ["GetLinks"])]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<ActionResult> RevokeLink(Guid id, CancellationToken ct)
-    {
-        var tenantId = _tenantAccessor.TenantId;
-        await _chatIdentityService.RevokeLinkAsync(tenantId, id, ct);
-        return NoContent();
-    }
+    public Task<ActionResult> RevokeLink(Guid id, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS");
 
     /// <summary>
-    /// Resolve a platform identity to a Nocturne user. Used by the bot service
-    /// to look up which tenant/user a chat message belongs to.
+    /// Resolve a platform identity to a Nocturne user.
     /// </summary>
     [HttpGet("resolve")]
     [RemoteQuery]
     [ProducesResponseType(typeof(ChatIdentityLinkResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ChatIdentityLinkResponse>> Resolve(
-        [FromQuery] string platform, [FromQuery] string platformUserId, CancellationToken ct)
-    {
-        var tenantId = _tenantAccessor.TenantId;
-        var link = await _chatIdentityService.FindByPlatformAsync(tenantId, platform, platformUserId, ct);
-
-        if (link is null)
-            return NotFound();
-
-        return Ok(new ChatIdentityLinkResponse
-        {
-            Id = link.Id,
-            NocturneUserId = link.NocturneUserId,
-            Platform = link.Platform,
-            PlatformUserId = link.PlatformUserId,
-            PlatformChannelId = link.PlatformChannelId,
-            DisplayUnit = link.DisplayUnit,
-            IsActive = link.IsActive,
-            CreatedAt = link.CreatedAt,
-        });
-    }
+    public Task<ActionResult<ChatIdentityLinkResponse>> Resolve(
+        [FromQuery] string platform, [FromQuery] string platformUserId, CancellationToken ct) =>
+        throw new NotImplementedException("MIGRATION-IN-PROGRESS");
 }
 
 #region DTOs
