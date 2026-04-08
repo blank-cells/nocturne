@@ -39,23 +39,16 @@ if (File.Exists(Path.Combine(solutionRoot, "appsettings.json")))
 
 // else: Docker or other deployment - use current directory (where files are copied)
 
-var appsettingsPath = Path.Combine(configPath, "appsettings.json");
-if (!File.Exists(appsettingsPath))
-{
-    var examplePath = Path.Combine(configPath, "appsettings.example.json");
-    Console.Error.WriteLine("ERROR: appsettings.json not found.");
-    Console.Error.WriteLine($"  Expected at: {appsettingsPath}");
-    if (File.Exists(examplePath))
-        Console.Error.WriteLine($"  Copy the example file to get started: cp appsettings.example.json appsettings.json");
-    else
-        Console.Error.WriteLine("  No example file found either. Check your repository setup.");
-    Environment.Exit(1);
-}
-
 builder.Configuration.SetBasePath(configPath);
 
-// Add additional configuration
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+// Config layering (later sources override earlier):
+//   1. appsettings.example.json — committed defaults, safe to ship in container images.
+//   2. appsettings.json — gitignored user overrides (optional; developers copy from example).
+//   3. appsettings.{Environment}.json — environment-specific overrides.
+//   4. Environment variables — runtime overrides (takes precedence over all files).
+// Secrets should NEVER live in appsettings.json — use env vars or user-secrets.
+builder.Configuration.AddJsonFile("appsettings.example.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 builder.Configuration.AddJsonFile(
     $"appsettings.{builder.Environment.EnvironmentName}.json",
     optional: true,
