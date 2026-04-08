@@ -455,9 +455,14 @@ public class NocturneDbContext : DbContext
     public DbSet<AlertCustomSoundEntity> AlertCustomSounds { get; set; }
 
     /// <summary>
-    /// Gets or sets the ChatIdentityLinks table for platform identity mappings
+    /// Gets or sets the ChatIdentityDirectory table — global routing for chat platform identities to tenant+user.
     /// </summary>
-    public DbSet<ChatIdentityLinkEntity> ChatIdentityLinks { get; set; }
+    public DbSet<ChatIdentityDirectoryEntry> ChatIdentityDirectory { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ChatIdentityPendingLinks table — short-lived state tokens for the link flow.
+    /// </summary>
+    public DbSet<ChatIdentityPendingLinkEntity> ChatIdentityPendingLinks { get; set; }
 
 
     /// <summary>
@@ -1741,6 +1746,34 @@ public class NocturneDbContext : DbContext
         modelBuilder.Entity<TenantEntity>()
             .HasIndex(t => t.LastReadingAt)
             .HasDatabaseName("ix_tenants_last_reading_at");
+
+        // Chat identity directory — global (NOT tenant-scoped) routing table.
+        modelBuilder.Entity<ChatIdentityDirectoryEntry>(b =>
+        {
+            b.HasKey(e => e.Id);
+
+            b.HasIndex(e => new { e.Platform, e.PlatformUserId, e.TenantId })
+                .IsUnique()
+                .HasDatabaseName("ux_directory_user_tenant");
+
+            b.HasIndex(e => new { e.Platform, e.PlatformUserId, e.Label })
+                .IsUnique()
+                .HasDatabaseName("ux_directory_user_label");
+
+            // At most one default per Discord user — partial unique index.
+            b.HasIndex(e => new { e.Platform, e.PlatformUserId })
+                .IsUnique()
+                .HasFilter("is_default = true")
+                .HasDatabaseName("ux_directory_user_one_default");
+
+            b.HasIndex(e => e.TenantId).HasDatabaseName("ix_directory_tenant_id");
+        });
+
+        modelBuilder.Entity<ChatIdentityPendingLinkEntity>(b =>
+        {
+            b.HasKey(e => e.Token);
+            b.HasIndex(e => e.ExpiresAt).HasDatabaseName("ix_pending_links_expires_at");
+        });
     }
 
     private static void ConfigureEntities(ModelBuilder modelBuilder)
