@@ -72,6 +72,31 @@ public interface IOidcAuthService
     /// <param name="refreshToken">Refresh token to validate</param>
     /// <returns>Subject ID if valid, null otherwise</returns>
     Task<Guid?> ValidateSessionAsync(string refreshToken);
+
+    Task<OidcAuthorizationRequest> GenerateLinkAuthorizationUrlAsync(
+        Guid providerId, Guid subjectId, string? returnUrl = null);
+
+    Task<OidcLinkResult> HandleLinkCallbackAsync(
+        string code, string state, string expectedState,
+        Guid authenticatedSubjectId,
+        string? ipAddress = null, string? userAgent = null);
+}
+
+/// <summary>
+/// Result of an OIDC account-linking callback
+/// </summary>
+public class OidcLinkResult
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public string? ErrorDescription { get; set; }
+    public Guid? IdentityId { get; set; }
+    public string? ReturnUrl { get; set; }
+
+    public static OidcLinkResult Succeeded(Guid identityId, string? returnUrl = null)
+        => new() { Success = true, IdentityId = identityId, ReturnUrl = returnUrl };
+    public static OidcLinkResult Failed(string error, string? description = null)
+        => new() { Success = false, Error = error, ErrorDescription = description };
 }
 
 /// <summary>

@@ -91,11 +91,27 @@ public class OidcAuthService : IOidcAuthService
             Nonce = GenerateRandomString(32),
             CreatedAt = DateTimeOffset.UtcNow,
             ExpiresAt = DateTimeOffset.UtcNow.Add(_options.State.Lifetime),
+            Intent = "login",
         };
+
+        return await BuildAuthorizationUrlAsync(provider, stateData, returnUrl, state);
+    }
+
+    private async Task<OidcAuthorizationRequest> BuildAuthorizationUrlAsync(
+        OidcProvider provider,
+        OidcStateData stateData,
+        string? returnUrl,
+        string? state = null
+    )
+    {
+        var discoveryDoc =
+            await _providerService.GetDiscoveryDocumentAsync(provider.Id)
+            ?? throw new InvalidOperationException(
+                $"Could not fetch OIDC discovery document for {provider.Name}"
+            );
 
         state ??= EncodeState(stateData);
 
-        // Build authorization URL
         var redirectUri = GetRedirectUri();
         var authUrl = BuildAuthorizationUrl(
             discoveryDoc.AuthorizationEndpoint,
@@ -117,25 +133,31 @@ public class OidcAuthService : IOidcAuthService
         };
     }
 
-    /// <inheritdoc />
-    public async Task<OidcCallbackResult> HandleCallbackAsync(
-        string code,
-        string state,
-        string expectedState,
-        string? ipAddress = null,
-        string? userAgent = null
+    private record CallbackParseResult(
+        bool Success,
+        string? Error,
+        string? ErrorDescription,
+        OidcStateData? StateData,
+        OidcProvider? Provider,
+        OidcIdTokenClaims? Claims
     )
     {
-        // Validate state parameter
+        public static CallbackParseResult Fail(string error, string? desc = null) =>
+            new(false, error, desc, null, null, null);
+        public static CallbackParseResult Ok(OidcStateData s, OidcProvider p, OidcIdTokenClaims c) =>
+            new(true, null, null, s, p, c);
+    }
+
+    private async Task<CallbackParseResult> ValidateCallbackAndParseIdTokenAsync(
+        string code, string state, string expectedState)
+    {
         if (string.IsNullOrEmpty(state) || state != expectedState)
         {
-            return OidcCallbackResult.Failed(
+            return CallbackParseResult.Fail(
                 "invalid_state",
-                "State parameter mismatch - possible CSRF attack"
-            );
+                "State parameter mismatch - possible CSRF attack");
         }
 
-        // Decode state to get provider ID and return URL
         OidcStateData stateData;
         try
         {
@@ -144,36 +166,26 @@ public class OidcAuthService : IOidcAuthService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to decode OIDC state");
-            return OidcCallbackResult.Failed("invalid_state", "Invalid state format");
+            return CallbackParseResult.Fail("invalid_state", "Invalid state format");
         }
 
-        // Check state expiration
         if (stateData.ExpiresAt < DateTimeOffset.UtcNow)
         {
-            return OidcCallbackResult.Failed("expired_state", "Authentication request has expired");
+            return CallbackParseResult.Fail("expired_state", "Authentication request has expired");
         }
 
-        // Get provider
         var provider = await _providerService.GetProviderByIdAsync(stateData.ProviderId);
         if (provider == null || !provider.IsEnabled)
         {
-            return OidcCallbackResult.Failed(
-                "invalid_provider",
-                "OIDC provider not found or disabled"
-            );
+            return CallbackParseResult.Fail("invalid_provider", "OIDC provider not found or disabled");
         }
 
-        // Get discovery document
         var discoveryDoc = await _providerService.GetDiscoveryDocumentAsync(provider.Id);
         if (discoveryDoc == null)
         {
-            return OidcCallbackResult.Failed(
-                "provider_error",
-                "Could not fetch provider configuration"
-            );
+            return CallbackParseResult.Fail("provider_error", "Could not fetch provider configuration");
         }
 
-        // Exchange code for tokens
         OidcProviderTokenResponse providerTokens;
         try
         {
@@ -188,29 +200,50 @@ public class OidcAuthService : IOidcAuthService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Token exchange failed");
-            return OidcCallbackResult.Failed("token_exchange_failed", ex.Message);
+            return CallbackParseResult.Fail("token_exchange_failed", ex.Message);
         }
 
-        // Parse and validate ID token
         OidcIdTokenClaims idTokenClaims;
         try
         {
             idTokenClaims = ParseIdToken(providerTokens.IdToken);
 
-            // Verify nonce if it was included
             if (!string.IsNullOrEmpty(stateData.Nonce) && idTokenClaims.Nonce != stateData.Nonce)
             {
-                return OidcCallbackResult.Failed("invalid_nonce", "ID token nonce mismatch");
+                return CallbackParseResult.Fail("invalid_nonce", "ID token nonce mismatch");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ID token parsing failed");
-            return OidcCallbackResult.Failed("invalid_id_token", ex.Message);
+            return CallbackParseResult.Fail("invalid_id_token", ex.Message);
         }
+
+        return CallbackParseResult.Ok(stateData, provider, idTokenClaims);
+    }
+
+    /// <inheritdoc />
+    public async Task<OidcCallbackResult> HandleCallbackAsync(
+        string code,
+        string state,
+        string expectedState,
+        string? ipAddress = null,
+        string? userAgent = null
+    )
+    {
+        var parsed = await ValidateCallbackAndParseIdTokenAsync(code, state, expectedState);
+        if (!parsed.Success)
+        {
+            return OidcCallbackResult.Failed(parsed.Error ?? "callback_failed", parsed.ErrorDescription);
+        }
+
+        var stateData = parsed.StateData!;
+        var provider = parsed.Provider!;
+        var idTokenClaims = parsed.Claims!;
 
         // Find or create subject
         var subject = await _subjectService.FindOrCreateFromOidcAsync(
+            provider.Id,
             idTokenClaims.Sub,
             provider.IssuerUrl,
             idTokenClaims.Email,
@@ -233,8 +266,6 @@ public class OidcAuthService : IOidcAuthService
                 Id = subject.Id,
                 Name = subject.Name,
                 Email = subject.Email,
-                OidcSubjectId = idTokenClaims.Sub,
-                OidcIssuer = provider.IssuerUrl,
             },
             permissions,
             roles,
@@ -349,8 +380,6 @@ public class OidcAuthService : IOidcAuthService
                 Id = subject.Id,
                 Name = subject.Name,
                 Email = subject.Email,
-                OidcSubjectId = subject.OidcSubjectId,
-                OidcIssuer = subject.OidcIssuer,
             },
             permissions,
             roles,
@@ -422,13 +451,12 @@ public class OidcAuthService : IOidcAuthService
         var permissions = await _subjectService.GetSubjectPermissionsAsync(subjectId);
         var roles = await _subjectService.GetSubjectRolesAsync(subjectId);
 
-        // Get provider name if linked
-        string? providerName = null;
-        if (!string.IsNullOrEmpty(subject.OidcIssuer))
-        {
-            var provider = await _providerService.GetProviderByIssuerAsync(subject.OidcIssuer);
-            providerName = provider?.Name;
-        }
+        // Get provider name from the most recently used linked OIDC identity.
+        // We don't currently persist the "current session provider" on the refresh-token row,
+        // so "most recently used" is the best available proxy for "the provider the user just
+        // signed in with". Falls back to most recently linked if LastUsedAt is null.
+        var mostRecent = await _subjectService.GetMostRecentlyUsedIdentityAsync(subjectId);
+        string? providerName = mostRecent?.ProviderName;
 
         return new OidcUserInfo
         {
@@ -447,6 +475,91 @@ public class OidcAuthService : IOidcAuthService
     public async Task<Guid?> ValidateSessionAsync(string refreshToken)
     {
         return await _refreshTokenService.ValidateRefreshTokenAsync(refreshToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<OidcAuthorizationRequest> GenerateLinkAuthorizationUrlAsync(
+        Guid providerId, Guid subjectId, string? returnUrl = null)
+    {
+        var provider =
+            await _providerService.GetProviderByIdAsync(providerId)
+            ?? throw new InvalidOperationException($"OIDC provider {providerId} not found");
+
+        if (!provider.IsEnabled)
+        {
+            throw new InvalidOperationException($"OIDC provider {provider.Name} is not enabled");
+        }
+
+        var stateData = new OidcStateData
+        {
+            ProviderId = provider.Id,
+            ReturnUrl = returnUrl ?? "/",
+            Nonce = GenerateRandomString(32),
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.Add(_options.State.Lifetime),
+            Intent = "link",
+            SubjectId = subjectId,
+        };
+
+        return await BuildAuthorizationUrlAsync(provider, stateData, returnUrl);
+    }
+
+    /// <inheritdoc />
+    public async Task<OidcLinkResult> HandleLinkCallbackAsync(
+        string code, string state, string expectedState,
+        Guid authenticatedSubjectId,
+        string? ipAddress = null, string? userAgent = null)
+    {
+        var parsed = await ValidateCallbackAndParseIdTokenAsync(code, state, expectedState);
+        if (!parsed.Success)
+        {
+            return OidcLinkResult.Failed(parsed.Error ?? "callback_failed", parsed.ErrorDescription);
+        }
+
+        var stateData = parsed.StateData!;
+        var provider = parsed.Provider!;
+        var claims = parsed.Claims!;
+
+        return await AttachVerifiedIdentityAsync(stateData, provider, claims, authenticatedSubjectId);
+    }
+
+    /// <summary>
+    /// Internal branching logic for attaching a verified OIDC identity to an authenticated
+    /// subject. Extracted from <see cref="HandleLinkCallbackAsync"/> so it can be unit tested
+    /// without having to mock token exchange + JWKS verification.
+    /// </summary>
+    internal async Task<OidcLinkResult> AttachVerifiedIdentityAsync(
+        OidcStateData stateData,
+        OidcProvider provider,
+        OidcIdTokenClaims claims,
+        Guid authenticatedSubjectId)
+    {
+        if (stateData.Intent != "link")
+        {
+            return OidcLinkResult.Failed("invalid_intent", "State was not issued for a link flow");
+        }
+        if (stateData.SubjectId != authenticatedSubjectId)
+        {
+            return OidcLinkResult.Failed("invalid_state", "State subject mismatch");
+        }
+
+        var (outcome, identityId) = await _subjectService.AttachOidcIdentityAsync(
+            authenticatedSubjectId,
+            provider.Id,
+            claims.Sub,
+            provider.IssuerUrl,
+            claims.Email);
+
+        return outcome switch
+        {
+            OidcLinkOutcome.Created or OidcLinkOutcome.AlreadyLinkedToSelf
+                => OidcLinkResult.Succeeded(identityId!.Value, stateData.ReturnUrl),
+            OidcLinkOutcome.AlreadyLinkedToOther
+                => OidcLinkResult.Failed(
+                    "identity_already_linked",
+                    "This provider account is already linked to another Nocturne user"),
+            _ => OidcLinkResult.Failed("unknown_error", "Unexpected link outcome"),
+        };
     }
 
     #region Private Helper Methods
@@ -656,13 +769,15 @@ public class OidcAuthService : IOidcAuthService
     /// <summary>
     /// State data encoded in the state parameter
     /// </summary>
-    private class OidcStateData
+    internal class OidcStateData
     {
         public Guid ProviderId { get; set; }
         public string? ReturnUrl { get; set; }
         public string? Nonce { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ExpiresAt { get; set; }
+        public string Intent { get; set; } = "login";
+        public Guid? SubjectId { get; set; }
     }
 
     /// <summary>
@@ -680,7 +795,7 @@ public class OidcAuthService : IOidcAuthService
     /// <summary>
     /// Claims extracted from ID token
     /// </summary>
-    private class OidcIdTokenClaims
+    internal class OidcIdTokenClaims
     {
         public string Sub { get; set; } = string.Empty;
         public string? Email { get; set; }

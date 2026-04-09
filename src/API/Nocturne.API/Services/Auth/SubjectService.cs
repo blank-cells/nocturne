@@ -54,6 +54,7 @@ public class SubjectService : ISubjectService
 
     /// <inheritdoc />
     public async Task<Subject> FindOrCreateFromOidcAsync(
+        Guid providerId,
         string oidcSubjectId,
         string issuer,
         string? email = null,
@@ -61,34 +62,32 @@ public class SubjectService : ISubjectService
         IEnumerable<string>? defaultRoles = null
     )
     {
-        // Try to find existing subject by OIDC identity
-        var entity = await _dbContext
-            .Subjects.Include(s => s.SubjectRoles)
+        // Try to find existing subject via the join table
+        var identity = await _dbContext.SubjectOidcIdentities
+            .Include(x => x.Subject)
+            .ThenInclude(s => s!.SubjectRoles)
             .ThenInclude(sr => sr.Role)
-            .FirstOrDefaultAsync(s => s.OidcSubjectId == oidcSubjectId && s.OidcIssuer == issuer);
+            .FirstOrDefaultAsync(x => x.OidcSubjectId == oidcSubjectId && x.Issuer == issuer);
 
-        if (entity != null)
+        if (identity?.Subject != null)
         {
-            // Update email/name if provided
-            var needsUpdate = false;
+            var entity = identity.Subject;
 
+            // Update email/name if provided
             if (!string.IsNullOrEmpty(email) && entity.Email != email)
             {
                 entity.Email = email;
-                needsUpdate = true;
             }
 
             if (!string.IsNullOrEmpty(name) && entity.Name != name)
             {
                 entity.Name = name;
-                needsUpdate = true;
             }
 
-            if (needsUpdate)
-            {
-                entity.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-            }
+            // Always bump LastUsedAt on the identity row and the subject's UpdatedAt.
+            identity.LastUsedAt = DateTime.UtcNow;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
 
             _logger.LogDebug(
                 "Found existing subject {SubjectId} for OIDC identity {OidcSubjectId}",
@@ -99,19 +98,31 @@ public class SubjectService : ISubjectService
         }
 
         // Create new subject
-        entity = new SubjectEntity
+        var newEntity = new SubjectEntity
         {
             Id = Guid.CreateVersion7(),
             Name = name ?? email ?? oidcSubjectId,
-            OidcSubjectId = oidcSubjectId,
-            OidcIssuer = issuer,
             Email = email,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
 
-        _dbContext.Subjects.Add(entity);
+        _dbContext.Subjects.Add(newEntity);
+
+        // Create the OIDC identity link
+        var identityEntity = new SubjectOidcIdentityEntity
+        {
+            Id = Guid.CreateVersion7(),
+            SubjectId = newEntity.Id,
+            ProviderId = providerId,
+            OidcSubjectId = oidcSubjectId,
+            Issuer = issuer,
+            Email = email,
+            LinkedAt = DateTime.UtcNow,
+        };
+        _dbContext.SubjectOidcIdentities.Add(identityEntity);
+
         await _dbContext.SaveChangesAsync();
 
         // Assign default roles if specified
@@ -119,8 +130,8 @@ public class SubjectService : ISubjectService
         {
             var assignedRoleIds = new HashSet<Guid>();
             foreach (var roleName in defaultRoles
-                .Select(name => name.Trim())
-                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(rn => rn.Trim())
+                .Where(rn => !string.IsNullOrWhiteSpace(rn))
                 .Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var role = await _dbContext.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
@@ -129,7 +140,7 @@ public class SubjectService : ISubjectService
                     _dbContext.SubjectRoles.Add(
                         new SubjectRoleEntity
                         {
-                            SubjectId = entity.Id,
+                            SubjectId = newEntity.Id,
                             RoleId = role.Id,
                             AssignedAt = DateTime.UtcNow,
                         }
@@ -140,17 +151,17 @@ public class SubjectService : ISubjectService
         }
 
         // Reload with roles
-        entity = await _dbContext
+        newEntity = await _dbContext
             .Subjects.Include(s => s.SubjectRoles)
             .ThenInclude(sr => sr.Role)
-            .FirstAsync(s => s.Id == entity.Id);
+            .FirstAsync(s => s.Id == newEntity.Id);
 
         _logger.LogInformation(
             "Created new subject {SubjectId} for OIDC identity {OidcSubjectId}",
-            entity.Id,
+            newEntity.Id,
             oidcSubjectId
         );
-        return MapToModel(entity);
+        return MapToModel(newEntity);
     }
 
     /// <inheritdoc />
@@ -163,8 +174,6 @@ public class SubjectService : ISubjectService
             Id = subject.Id == Guid.Empty ? Guid.CreateVersion7() : subject.Id,
             Name = subject.Name,
             Email = subject.Email,
-            OidcSubjectId = subject.OidcSubjectId,
-            OidcIssuer = subject.OidcIssuer,
             Notes = subject.Notes,
             IsActive = subject.IsActive,
             CreatedAt = DateTime.UtcNow,
@@ -343,7 +352,7 @@ public class SubjectService : ISubjectService
 
             if (!string.IsNullOrEmpty(filter.OidcIssuer))
             {
-                query = query.Where(s => s.OidcIssuer == filter.OidcIssuer);
+                query = query.Where(s => s.OidcIdentities.Any(i => i.Issuer == filter.OidcIssuer));
             }
 
             if (!string.IsNullOrEmpty(filter.NameContains))
@@ -579,56 +588,190 @@ public class SubjectService : ISubjectService
     }
 
     /// <inheritdoc />
-    public async Task<AuthMethodGuardResult> HasAlternativeAuthMethodAsync(Guid subjectId, AuthMethodType excluding)
+    public async Task<IReadOnlyList<SubjectOidcIdentity>> GetLinkedOidcIdentitiesAsync(Guid subjectId)
     {
-        var hasOidc = excluding != AuthMethodType.Oidc
-            && await _dbContext.Subjects.AnyAsync(s => s.Id == subjectId && s.OidcSubjectId != null);
+        var entities = await _dbContext.SubjectOidcIdentities
+            .Include(x => x.Provider)
+            .Where(x => x.SubjectId == subjectId)
+            .OrderBy(x => x.LinkedAt)
+            .ToListAsync();
 
-        var passkeyCount = await _dbContext.PasskeyCredentials.CountAsync(c => c.SubjectId == subjectId);
-        var totpCount = await _dbContext.TotpCredentials.CountAsync(c => c.SubjectId == subjectId);
-
-        // Count alternatives: other method types, OR >1 of the same type being removed
-        var otherPasskeys = excluding == AuthMethodType.Passkey ? 0 : passkeyCount;
-        var otherTotp = excluding == AuthMethodType.Totp ? 0 : totpCount;
-        var sameTypeCount = excluding switch
+        return entities.Select(e => new SubjectOidcIdentity
         {
-            AuthMethodType.Passkey => passkeyCount,
-            AuthMethodType.Totp => totpCount,
-            _ => 0,
+            Id = e.Id,
+            SubjectId = e.SubjectId,
+            ProviderId = e.ProviderId,
+            ProviderName = e.Provider?.Name ?? "Unknown",
+            ProviderIcon = e.Provider?.Icon,
+            ProviderButtonColor = e.Provider?.ButtonColor,
+            OidcSubjectId = e.OidcSubjectId,
+            Issuer = e.Issuer,
+            Email = e.Email,
+            LinkedAt = e.LinkedAt,
+            LastUsedAt = e.LastUsedAt,
+        }).ToList();
+    }
+
+    /// <inheritdoc />
+    public async Task<(OidcLinkOutcome Outcome, Guid? IdentityId)> AttachOidcIdentityAsync(
+        Guid subjectId, Guid providerId, string oidcSubjectId, string issuer, string? email)
+    {
+        var existing = await _dbContext.SubjectOidcIdentities
+            .FirstOrDefaultAsync(x => x.OidcSubjectId == oidcSubjectId && x.Issuer == issuer);
+
+        if (existing != null)
+        {
+            if (existing.SubjectId == subjectId)
+            {
+                existing.LastUsedAt = DateTime.UtcNow;
+                if (!string.IsNullOrEmpty(email) && existing.Email != email)
+                    existing.Email = email;
+                await _dbContext.SaveChangesAsync();
+                return (OidcLinkOutcome.AlreadyLinkedToSelf, existing.Id);
+            }
+            return (OidcLinkOutcome.AlreadyLinkedToOther, null);
+        }
+
+        var row = new SubjectOidcIdentityEntity
+        {
+            Id = Guid.CreateVersion7(),
+            SubjectId = subjectId,
+            ProviderId = providerId,
+            OidcSubjectId = oidcSubjectId,
+            Issuer = issuer,
+            Email = email,
+            LinkedAt = DateTime.UtcNow,
         };
+        _dbContext.SubjectOidcIdentities.Add(row);
+        await _dbContext.SaveChangesAsync();
+        return (OidcLinkOutcome.Created, row.Id);
+    }
 
-        // User can delete if they have other method types OR >1 of the same type
-        if (hasOidc || otherPasskeys > 0 || otherTotp > 0 || sameTypeCount > 1)
+    /// <inheritdoc />
+    public async Task<SubjectOidcIdentity?> GetMostRecentlyUsedIdentityAsync(Guid subjectId)
+    {
+        var e = await _dbContext.SubjectOidcIdentities
+            .Include(x => x.Provider)
+            .Where(x => x.SubjectId == subjectId)
+            .OrderByDescending(x => x.LastUsedAt ?? x.LinkedAt)
+            .FirstOrDefaultAsync();
+
+        if (e == null) return null;
+
+        return new SubjectOidcIdentity
         {
-            return new AuthMethodGuardResult(HasAlternative: true, LastRemainingMethodName: null, LastRemainingMethodType: null);
-        }
+            Id = e.Id,
+            SubjectId = e.SubjectId,
+            ProviderId = e.ProviderId,
+            ProviderName = e.Provider?.Name ?? "Unknown",
+            ProviderIcon = e.Provider?.Icon,
+            ProviderButtonColor = e.Provider?.ButtonColor,
+            OidcSubjectId = e.OidcSubjectId,
+            Issuer = e.Issuer,
+            Email = e.Email,
+            LinkedAt = e.LinkedAt,
+            LastUsedAt = e.LastUsedAt,
+        };
+    }
 
-        // This is the user's last credential and only auth method type.
-        string? lastMethodName = null;
-        AuthMethodType? lastMethodType = excluding;
-
-        switch (excluding)
+    /// <inheritdoc />
+    public async Task<FactorRemovalResult> TryRemoveOidcIdentityAsync(Guid subjectId, Guid identityId)
+    {
+        // InMemory provider (used in tests) doesn't support transactions; skip in that case.
+        var supportsTx = _dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (supportsTx)
         {
-            case AuthMethodType.Passkey:
-                lastMethodName = await _dbContext.PasskeyCredentials
-                    .Where(c => c.SubjectId == subjectId)
-                    .Select(c => c.Label ?? "passkey")
-                    .FirstOrDefaultAsync();
-                break;
-
-            case AuthMethodType.Totp:
-                lastMethodName = await _dbContext.TotpCredentials
-                    .Where(c => c.SubjectId == subjectId)
-                    .Select(c => c.Label ?? "TOTP application")
-                    .FirstOrDefaultAsync();
-                break;
-
-            case AuthMethodType.Oidc:
-                lastMethodName = "OIDC identity";
-                break;
+            tx = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
         }
+        try
+        {
+            var row = await _dbContext.SubjectOidcIdentities
+                .FirstOrDefaultAsync(x => x.Id == identityId && x.SubjectId == subjectId);
+            if (row == null)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return FactorRemovalResult.NotFound;
+            }
 
-        return new AuthMethodGuardResult(HasAlternative: false, LastRemainingMethodName: lastMethodName, LastRemainingMethodType: lastMethodType);
+            var remainingPasskeys = await _dbContext.PasskeyCredentials
+                .CountAsync(p => p.SubjectId == subjectId);
+            var remainingOidc = await _dbContext.SubjectOidcIdentities
+                .CountAsync(i => i.SubjectId == subjectId && i.Id != identityId);
+            if (remainingPasskeys + remainingOidc < 1)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return FactorRemovalResult.LastPrimaryFactor;
+            }
+
+            _dbContext.SubjectOidcIdentities.Remove(row);
+            await _dbContext.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+            return FactorRemovalResult.Removed;
+        }
+        finally
+        {
+            if (tx != null) await tx.DisposeAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<FactorRemovalResult> TryRemovePasskeyCredentialAsync(Guid subjectId, Guid credentialId)
+    {
+        var supportsTx = _dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (supportsTx)
+        {
+            tx = await _dbContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        }
+        try
+        {
+            var row = await _dbContext.PasskeyCredentials
+                .FirstOrDefaultAsync(x => x.Id == credentialId && x.SubjectId == subjectId);
+            if (row == null)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return FactorRemovalResult.NotFound;
+            }
+
+            var remainingPasskeys = await _dbContext.PasskeyCredentials
+                .CountAsync(p => p.SubjectId == subjectId && p.Id != credentialId);
+            var remainingOidc = await _dbContext.SubjectOidcIdentities
+                .CountAsync(i => i.SubjectId == subjectId);
+            if (remainingPasskeys + remainingOidc < 1)
+            {
+                if (tx != null) await tx.RollbackAsync();
+                return FactorRemovalResult.LastPrimaryFactor;
+            }
+
+            _dbContext.PasskeyCredentials.Remove(row);
+            await _dbContext.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+            return FactorRemovalResult.Removed;
+        }
+        finally
+        {
+            if (tx != null) await tx.DisposeAsync();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<int> CountPrimaryAuthFactorsAsync(Guid subjectId)
+    {
+        var passkeys = await _dbContext.PasskeyCredentials.CountAsync(p => p.SubjectId == subjectId);
+        var oidc = await _dbContext.SubjectOidcIdentities.CountAsync(i => i.SubjectId == subjectId);
+        return passkeys + oidc;
+    }
+
+    /// <inheritdoc />
+    public async Task UpdateOidcIdentityLastUsedAsync(Guid identityId)
+    {
+        var row = await _dbContext.SubjectOidcIdentities.FindAsync(identityId);
+        if (row != null)
+        {
+            row.LastUsedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+        }
     }
 
     /// <summary>
@@ -660,8 +803,6 @@ public class SubjectService : ISubjectService
             Id = entity.Id,
             Name = entity.Name,
             Email = entity.Email,
-            OidcSubjectId = entity.OidcSubjectId,
-            OidcIssuer = entity.OidcIssuer,
             IsActive = entity.IsActive,
             IsSystemSubject = entity.IsSystemSubject,
             IsPlatformAdmin = entity.IsPlatformAdmin,
@@ -673,19 +814,20 @@ public class SubjectService : ISubjectService
             Permissions = new List<string>(),
         };
 
-        // Determine type based on OIDC linkage
-        if (!string.IsNullOrEmpty(entity.OidcSubjectId))
-        {
-            subject.Type = SubjectType.User;
-        }
-        else if (!string.IsNullOrEmpty(entity.AccessTokenHash))
-        {
-            subject.Type = SubjectType.Device;
-        }
-        else
-        {
-            subject.Type = SubjectType.Service;
-        }
+        // Determine type from columns on the entity itself (no navigation required).
+        // Device/Service subjects are distinguished by the presence of an access token hash;
+        // everything else is treated as a User (including OIDC-linked users whose identities
+        // live in the SubjectOidcIdentities join table).
+        //
+        // SubjectType.Service is no longer derived here — with the OIDC columns gone,
+        // MapToModel cannot distinguish a Service subject from a regular User without
+        // loading the OidcIdentities navigation, which would be a hidden N+1. Service
+        // subjects are explicitly constructed in AuthorizationService. Follow-up:
+        // consider collapsing Service/User in the enum, or persisting the type as a
+        // column on SubjectEntity.
+        subject.Type = !string.IsNullOrEmpty(entity.AccessTokenHash)
+            ? SubjectType.Device
+            : SubjectType.User;
 
         // Map roles and aggregate permissions
         var permissions = new HashSet<string>();

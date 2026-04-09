@@ -140,59 +140,6 @@ public class PasskeyServiceTests
 
     #endregion
 
-    #region HasOidcLinkAsync
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    public async Task HasOidcLinkAsync_ReturnsTrueWhenOidcSubjectIdSet()
-    {
-        _dbContext.Subjects.Add(new SubjectEntity
-        {
-            Id = _subjectId,
-            Name = "Test User",
-            OidcSubjectId = "google|12345",
-        });
-        await _dbContext.SaveChangesAsync();
-
-        var service = CreateService();
-
-        var result = await service.HasOidcLinkAsync(_subjectId);
-
-        result.Should().BeTrue();
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    public async Task HasOidcLinkAsync_ReturnsFalseWhenOidcSubjectIdNull()
-    {
-        _dbContext.Subjects.Add(new SubjectEntity
-        {
-            Id = _subjectId,
-            Name = "Test User",
-            OidcSubjectId = null,
-        });
-        await _dbContext.SaveChangesAsync();
-
-        var service = CreateService();
-
-        var result = await service.HasOidcLinkAsync(_subjectId);
-
-        result.Should().BeFalse();
-    }
-
-    [Fact]
-    [Trait("Category", "Unit")]
-    public async Task HasOidcLinkAsync_ReturnsFalseWhenSubjectNotFound()
-    {
-        var service = CreateService();
-
-        var result = await service.HasOidcLinkAsync(Guid.CreateVersion7());
-
-        result.Should().BeFalse();
-    }
-
-    #endregion
-
     #region RemoveCredentialAsync
 
     [Fact]
@@ -231,7 +178,7 @@ public class PasskeyServiceTests
     [Trait("Category", "Unit")]
     public async Task RemoveCredentialAsync_RemovesLastPasskey_GuardIsNowOnController()
     {
-        // Guard logic has been moved to the controller via SubjectService.HasAlternativeAuthMethodAsync.
+        // Guard logic has been moved to the controller via SubjectService.CountPrimaryAuthFactorsAsync.
         // PasskeyService now simply removes the credential without checking alternatives.
         var cred = CreateCredentialEntity(_subjectId);
         _dbContext.PasskeyCredentials.Add(cred);

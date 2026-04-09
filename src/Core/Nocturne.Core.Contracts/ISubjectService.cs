@@ -31,11 +31,34 @@ public interface ISubjectService
     /// <param name="defaultRoles">Default roles to assign if creating</param>
     /// <returns>Found or created subject</returns>
     Task<Subject> FindOrCreateFromOidcAsync(
+        Guid providerId,
         string oidcSubjectId,
         string issuer,
         string? email = null,
         string? name = null,
         IEnumerable<string>? defaultRoles = null);
+
+    Task<IReadOnlyList<SubjectOidcIdentity>> GetLinkedOidcIdentitiesAsync(Guid subjectId);
+    Task<SubjectOidcIdentity?> GetMostRecentlyUsedIdentityAsync(Guid subjectId);
+    Task<(OidcLinkOutcome Outcome, Guid? IdentityId)> AttachOidcIdentityAsync(
+        Guid subjectId, Guid providerId, string oidcSubjectId, string issuer, string? email);
+
+    /// <summary>
+    /// Atomically remove an OIDC identity from a subject, enforcing the primary-factor rule
+    /// (at least one primary factor — passkey or OIDC identity — must remain after removal).
+    /// The check and the delete run inside a serializable transaction to prevent TOCTOU races.
+    /// </summary>
+    Task<FactorRemovalResult> TryRemoveOidcIdentityAsync(Guid subjectId, Guid identityId);
+
+    /// <summary>
+    /// Atomically remove a passkey credential from a subject, enforcing the primary-factor rule
+    /// (at least one primary factor — passkey or OIDC identity — must remain after removal).
+    /// The check and the delete run inside a serializable transaction to prevent TOCTOU races.
+    /// </summary>
+    Task<FactorRemovalResult> TryRemovePasskeyCredentialAsync(Guid subjectId, Guid credentialId);
+
+    Task<int> CountPrimaryAuthFactorsAsync(Guid subjectId);
+    Task UpdateOidcIdentityLastUsedAsync(Guid identityId);
 
     /// <summary>
     /// Create a new subject (device/API key)
@@ -136,15 +159,27 @@ public interface ISubjectService
     /// </summary>
     /// <returns>The Public subject</returns>
     Task<Subject?> InitializePublicSubjectAsync();
+}
+
+/// <summary>
+/// Outcome of an atomic primary-factor removal attempt.
+/// </summary>
+public enum FactorRemovalResult
+{
+    /// <summary>
+    /// The factor was successfully removed.
+    /// </summary>
+    Removed,
 
     /// <summary>
-    /// Check whether a subject has at least one alternative authentication method
-    /// beyond the specified type. Used to prevent removal of the last sign-in method.
+    /// The factor was not found or was not owned by the caller.
     /// </summary>
-    /// <param name="subjectId">Subject identifier</param>
-    /// <param name="excluding">The auth method type being removed</param>
-    /// <returns>Guard result indicating whether alternatives exist</returns>
-    Task<AuthMethodGuardResult> HasAlternativeAuthMethodAsync(Guid subjectId, AuthMethodType excluding);
+    NotFound,
+
+    /// <summary>
+    /// Removing the factor would leave the subject with zero primary auth factors.
+    /// </summary>
+    LastPrimaryFactor,
 }
 
 /// <summary>
@@ -162,27 +197,6 @@ public class SubjectCreationResult
     /// </summary>
     public string? AccessToken { get; set; }
 }
-
-/// <summary>
-/// Types of authentication methods a subject can have
-/// </summary>
-public enum AuthMethodType
-{
-    Passkey,
-    Totp,
-    Oidc,
-}
-
-/// <summary>
-/// Result of checking whether a subject has alternative authentication methods
-/// </summary>
-/// <param name="HasAlternative">True if the subject has at least one auth method beyond the excluded type</param>
-/// <param name="LastRemainingMethodName">If no alternatives exist, the name of the last remaining method of the excluded type</param>
-/// <param name="LastRemainingMethodType">If no alternatives exist, the type of the last remaining method</param>
-public record AuthMethodGuardResult(
-    bool HasAlternative,
-    string? LastRemainingMethodName,
-    AuthMethodType? LastRemainingMethodType);
 
 /// <summary>
 /// Filter criteria for querying subjects

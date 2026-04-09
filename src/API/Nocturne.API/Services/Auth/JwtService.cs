@@ -86,17 +86,6 @@ public class JwtService : IJwtService
             claims.Add(new Claim(JwtRegisteredClaimNames.Email, subject.Email));
         }
 
-        // Add OIDC claims if present
-        if (!string.IsNullOrEmpty(subject.OidcSubjectId))
-        {
-            claims.Add(new Claim("oidc_sub", subject.OidcSubjectId));
-        }
-
-        if (!string.IsNullOrEmpty(subject.OidcIssuer))
-        {
-            claims.Add(new Claim("oidc_iss", subject.OidcIssuer));
-        }
-
         // Add roles
         foreach (var role in roles)
         {
@@ -163,17 +152,6 @@ public class JwtService : IJwtService
         if (!string.IsNullOrEmpty(subject.Email))
         {
             claims.Add(new Claim(JwtRegisteredClaimNames.Email, subject.Email));
-        }
-
-        // Add OIDC claims if present
-        if (!string.IsNullOrEmpty(subject.OidcSubjectId))
-        {
-            claims.Add(new Claim("oidc_sub", subject.OidcSubjectId));
-        }
-
-        if (!string.IsNullOrEmpty(subject.OidcIssuer))
-        {
-            claims.Add(new Claim("oidc_iss", subject.OidcIssuer));
         }
 
         // Add OAuth client ID if present

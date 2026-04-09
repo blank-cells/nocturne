@@ -71,6 +71,11 @@ public class CookieSettings
     public string StateCookieName { get; set; } = ".Nocturne.OidcState";
 
     /// <summary>
+    /// Name of the OIDC link state cookie (for CSRF protection during account linking)
+    /// </summary>
+    public string LinkStateCookieName { get; set; } = ".Nocturne.OidcLinkState";
+
+    /// <summary>
     /// Cookie domain (null = current domain)
     /// </summary>
     public string? Domain { get; set; }

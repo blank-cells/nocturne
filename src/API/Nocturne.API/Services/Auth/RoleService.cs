@@ -214,8 +214,6 @@ public class RoleService : IRoleService
                 Type = SubjectType.User, // Default type since entity doesn't track type
                 Email = s.Email,
                 IsActive = s.IsActive,
-                OidcSubjectId = s.OidcSubjectId,
-                OidcIssuer = s.OidcIssuer,
                 CreatedAt = s.CreatedAt,
                 LastLoginAt = s.LastLoginAt,
             })

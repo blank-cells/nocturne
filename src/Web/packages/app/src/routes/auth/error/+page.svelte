@@ -15,6 +15,8 @@
   function getErrorTitle(error: string): string {
     const titles: Record<string, string> = {
       invalid_state: "Session Expired",
+      invalid_intent: "Session Expired",
+      identity_already_linked: "Account Already Linked",
       access_denied: "Access Denied",
       invalid_request: "Invalid Request",
       unauthorized_client: "Authorization Error",
@@ -33,7 +35,11 @@
   function getSuggestion(error: string): string {
     const suggestions: Record<string, string> = {
       invalid_state:
-        "Your session may have expired. Please try logging in again.",
+        "Your session may have expired. Please try linking again.",
+      invalid_intent:
+        "Your session expired before the link could be completed. Please try linking again.",
+      identity_already_linked:
+        "This provider account is already linked to another Nocturne user. If this is your account, sign in with that provider directly.",
       access_denied:
         "You may not have permission to access this resource. Contact your administrator if you believe this is an error.",
       invalid_request:

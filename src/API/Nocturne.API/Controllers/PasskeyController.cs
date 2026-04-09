@@ -203,8 +203,6 @@ public class PasskeyController : ControllerBase
                 Id = subject.Id,
                 Name = assertionResult.DisplayName ?? assertionResult.Username,
                 Email = subject.Email,
-                OidcSubjectId = subject.OidcSubjectId,
-                OidcIssuer = subject.OidcIssuer,
             };
 
             var accessToken = _jwtService.GenerateAccessToken(subjectInfo, permissions, roles);
@@ -290,8 +288,6 @@ public class PasskeyController : ControllerBase
             Id = subjectEntity.Id,
             Name = subjectEntity.Name,
             Email = subjectEntity.Email,
-            OidcSubjectId = subjectEntity.OidcSubjectId,
-            OidcIssuer = subjectEntity.OidcIssuer,
         };
 
         var recoveryToken = _jwtService.GenerateAccessToken(
@@ -334,7 +330,7 @@ public class PasskeyController : ControllerBase
 
         var tenantId = _tenantAccessor.TenantId;
         var credentials = await _passkeyService.GetCredentialsAsync(auth.SubjectId.Value, tenantId);
-        var hasOidc = await _passkeyService.HasOidcLinkAsync(auth.SubjectId.Value);
+        var primaryFactorCount = await _subjectService.CountPrimaryAuthFactorsAsync(auth.SubjectId.Value);
 
         return Ok(new PasskeyCredentialListResponse
         {
@@ -345,7 +341,7 @@ public class PasskeyController : ControllerBase
                 CreatedAt = c.CreatedAt,
                 LastUsedAt = c.LastUsedAt,
             }).ToList(),
-            HasOidcLink = hasOidc,
+            PrimaryAuthFactorCount = primaryFactorCount,
         });
     }
 
@@ -358,6 +354,7 @@ public class PasskeyController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RemoveCredential(Guid id)
     {
         var auth = HttpContext.GetAuthContext();
@@ -366,27 +363,20 @@ public class PasskeyController : ControllerBase
             return Problem(detail: "Authentication required", statusCode: 401, title: "Unauthorized");
         }
 
-        var tenantId = _tenantAccessor.TenantId;
-
-        // Check removal protection: cannot remove last sign-in method
-        var guard = await _subjectService.HasAlternativeAuthMethodAsync(auth.SubjectId.Value, AuthMethodType.Passkey);
-        if (!guard.HasAlternative)
+        // Symmetric factor-count rule is enforced atomically inside the service inside a
+        // serializable transaction to prevent TOCTOU races between concurrent removals.
+        var result = await _subjectService.TryRemovePasskeyCredentialAsync(auth.SubjectId.Value, id);
+        return result switch
         {
-            return Problem(
-                detail: $"Cannot remove your last sign-in method. Your only remaining login method is your {guard.LastRemainingMethodName}.",
-                statusCode: 400, title: "Bad Request");
-        }
-
-        try
-        {
-            await _passkeyService.RemoveCredentialAsync(id, auth.SubjectId.Value, tenantId);
-            return NoContent();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to remove passkey credential {CredentialId}", id);
-            return Problem(detail: "Credential not found", statusCode: 404, title: "Not Found");
-        }
+            FactorRemovalResult.Removed => NoContent(),
+            FactorRemovalResult.NotFound => Problem(detail: "Credential not found", statusCode: 404, title: "Not Found"),
+            FactorRemovalResult.LastPrimaryFactor => Conflict(new
+            {
+                error = "last_factor",
+                message = "Cannot remove your only remaining sign-in method",
+            }),
+            _ => throw new InvalidOperationException($"Unexpected FactorRemovalResult: {result}"),
+        };
     }
 
     /// <summary>
@@ -461,7 +451,7 @@ public class PasskeyController : ControllerBase
                     s => s.Id,
                     (tm, s) => s)
                 .Where(s =>
-                    s.OidcSubjectId == null &&
+                    !_dbContext.SubjectOidcIdentities.Any(i => i.SubjectId == s.Id) &&
                     !_dbContext.PasskeyCredentials.Any(p => p.SubjectId == s.Id))
                 .AnyAsync();
         }
@@ -504,7 +494,7 @@ public class PasskeyController : ControllerBase
                         s => s.Id,
                         (tm, s) => s)
                     .Where(s =>
-                        s.OidcSubjectId == null &&
+                        !_dbContext.SubjectOidcIdentities.Any(i => i.SubjectId == s.Id) &&
                         !_dbContext.PasskeyCredentials.Any(p => p.SubjectId == s.Id))
                     .AnyAsync();
             }
@@ -1144,7 +1134,7 @@ public class RecoveryVerifyResponse
 public class PasskeyCredentialListResponse
 {
     public List<PasskeyCredentialDto> Credentials { get; set; } = new();
-    public bool HasOidcLink { get; set; }
+    public int PrimaryAuthFactorCount { get; set; }
 }
 
 /// <summary>

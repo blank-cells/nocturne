@@ -85,8 +85,6 @@ public class AuthorizationService : IAuthorizationService, IDisposable
                 Id = subject.Id,
                 Name = subject.Name,
                 Email = subject.Email,
-                OidcSubjectId = subject.OidcSubjectId,
-                OidcIssuer = subject.OidcIssuer,
             };
 
             var jwt = _jwtService.GenerateAccessToken(subjectInfo, permissions, roles);

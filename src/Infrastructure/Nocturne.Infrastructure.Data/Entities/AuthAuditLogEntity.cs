@@ -168,4 +168,14 @@ public static class AuthAuditEventType
     /// Event type when a session has expired.
     /// </summary>
     public const string SessionExpired = "session_expired";
+
+    /// <summary>
+    /// Event type when an OIDC identity is linked to a subject.
+    /// </summary>
+    public const string OidcIdentityLinked = "oidc_identity_linked";
+
+    /// <summary>
+    /// Event type when an OIDC identity is unlinked from a subject.
+    /// </summary>
+    public const string OidcIdentityUnlinked = "oidc_identity_unlinked";
 }

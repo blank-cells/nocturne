@@ -686,7 +686,6 @@ public class PasskeyControllerTests : IDisposable
             Name = "Orphaned",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = null,
         });
         _dbContext.TenantMembers.Add(new TenantMemberEntity
         {

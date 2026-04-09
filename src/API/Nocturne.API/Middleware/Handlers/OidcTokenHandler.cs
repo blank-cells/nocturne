@@ -316,6 +316,7 @@ public class OidcTokenHandler : IAuthHandler
 
         // Find or create subject from OIDC identity
         var subject = await subjectService.FindOrCreateFromOidcAsync(
+            provider.Id,
             oidcSubjectId,
             provider.IssuerUrl,
             email,

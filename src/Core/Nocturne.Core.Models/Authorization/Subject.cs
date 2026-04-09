@@ -41,16 +41,6 @@ public class Subject
     public bool IsPlatformAdmin { get; set; }
 
     /// <summary>
-    /// OIDC subject identifier (sub claim)
-    /// </summary>
-    public string? OidcSubjectId { get; set; }
-
-    /// <summary>
-    /// OIDC issuer URL
-    /// </summary>
-    public string? OidcIssuer { get; set; }
-
-    /// <summary>
     /// Avatar URL
     /// </summary>
     public string? AvatarUrl { get; set; }

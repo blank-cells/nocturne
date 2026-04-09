@@ -97,7 +97,9 @@ public class RecoveryModeCheckService : IHostedService
                 .IgnoreQueryFilters()
                 .Where(s => s.IsActive && !s.IsSystemSubject)
                 .Where(s =>
-                    s.OidcSubjectId == null &&
+                    !db.SubjectOidcIdentities
+                        .IgnoreQueryFilters()
+                        .Any(i => i.SubjectId == s.Id) &&
                     !db.PasskeyCredentials
                         .IgnoreQueryFilters()
                         .Any(p => p.SubjectId == s.Id)

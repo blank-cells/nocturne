@@ -239,7 +239,7 @@ public class OidcProviderAdminController : ControllerBase
 
         // Zero enabled providers would remain. Check for OIDC-only users.
         var oidcOnlyUserCount = await _dbContext.Subjects
-            .Where(s => s.OidcSubjectId != null)
+            .Where(s => s.OidcIdentities.Any())
             .Where(s => !_dbContext.PasskeyCredentials.Any(p => p.SubjectId == s.Id))
             .Where(s => !_dbContext.TotpCredentials.Any(t => t.SubjectId == s.Id))
             .CountAsync();

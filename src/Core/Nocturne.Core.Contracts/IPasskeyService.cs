@@ -13,7 +13,6 @@ public interface IPasskeyService
     Task<List<PasskeyCredentialInfo>> GetCredentialsAsync(Guid subjectId, Guid tenantId);
     Task RemoveCredentialAsync(Guid credentialId, Guid subjectId, Guid tenantId);
     Task<int> GetCredentialCountAsync(Guid subjectId, Guid tenantId);
-    Task<bool> HasOidcLinkAsync(Guid subjectId);
 }
 
 public record PasskeyRegistrationOptions(string OptionsJson, string ChallengeToken);

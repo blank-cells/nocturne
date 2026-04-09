@@ -102,7 +102,7 @@ public class TenantSetupMiddleware
                 s => s.Id,
                 (tm, s) => s)
             .Where(s =>
-                s.OidcSubjectId == null &&
+                !db.SubjectOidcIdentities.Any(i => i.SubjectId == s.Id) &&
                 !db.PasskeyCredentials.Any(p => p.SubjectId == s.Id))
             .AnyAsync();
 

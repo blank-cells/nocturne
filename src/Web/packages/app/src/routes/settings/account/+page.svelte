@@ -48,6 +48,8 @@
     listCredentials as totpListCredentials,
     removeCredential as totpRemoveCredential,
   } from "$lib/api/generated/totps.generated.remote";
+  import LinkedOidcIdentities from "$lib/components/settings/LinkedOidcIdentities.svelte";
+  import { page } from "$app/state";
 
   const { data }: { data: PageData } = $props();
 
@@ -124,10 +126,29 @@
   const maxTotpCredentials = 10;
 
   const credentials = $derived(credentialsQuery.current?.credentials ?? []);
-  const hasOidcLink = $derived(credentialsQuery.current?.hasOidcLink ?? false);
+  const primaryAuthFactorCount = $derived(
+    credentialsQuery.current?.primaryAuthFactorCount ?? 0
+  );
   const recoveryStatus = $derived(recoveryQuery.current);
   const isSecurityLoading = $derived(credentialsQuery.loading);
-  const canRemovePasskey = $derived(credentials.length > 1 || hasOidcLink);
+  const canRemovePasskey = $derived(primaryAuthFactorCount > 1);
+
+  // Handle ?linked= query param from OIDC link flow return
+  $effect(() => {
+    const linked = page.url.searchParams.get("linked");
+    if (linked === "success") {
+      successMessage = "Account linked successfully.";
+      clearMessages();
+    } else if (linked === "already") {
+      successMessage = "This account was already linked.";
+      clearMessages();
+    }
+    if (linked && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("linked");
+      history.replaceState({}, "", url.toString());
+    }
+  });
   const maxPasskeys = 20;
 
   // ============================================================================
@@ -574,6 +595,9 @@
           {/if}
         </Card.Content>
       </Card.Root>
+
+      <!-- Section 1b: Linked OIDC identities -->
+      <LinkedOidcIdentities {primaryAuthFactorCount} />
 
       <!-- Section 2: Authenticator Apps -->
       <Card.Root>

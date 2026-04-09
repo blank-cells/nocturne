@@ -107,13 +107,31 @@ public class RecoveryModeCheckServiceTests : IDisposable
     [Trait("Category", "Unit")]
     public async Task StartAsync_SubjectWithOidc_NotOrphaned()
     {
+        var providerId = Guid.CreateVersion7();
+        _dbContext.OidcProviders.Add(new OidcProviderEntity
+        {
+            Id = providerId,
+            Name = "Test Provider",
+            IssuerUrl = "https://issuer.example.test",
+            ClientId = "test-client",
+            IsEnabled = true,
+        });
+        var subjectId = Guid.CreateVersion7();
         _dbContext.Subjects.Add(new SubjectEntity
         {
-            Id = Guid.CreateVersion7(),
+            Id = subjectId,
             Name = "OIDC User",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = "oidc-sub-123",
+        });
+        _dbContext.SubjectOidcIdentities.Add(new SubjectOidcIdentityEntity
+        {
+            Id = Guid.CreateVersion7(),
+            SubjectId = subjectId,
+            ProviderId = providerId,
+            OidcSubjectId = "external-sub-1",
+            Issuer = "https://issuer.example.test",
+            LinkedAt = DateTime.UtcNow,
         });
         await _dbContext.SaveChangesAsync();
 
@@ -133,7 +151,6 @@ public class RecoveryModeCheckServiceTests : IDisposable
             Name = "Orphaned User",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = null,
         });
         await _dbContext.SaveChangesAsync();
 
@@ -153,7 +170,6 @@ public class RecoveryModeCheckServiceTests : IDisposable
             Name = "System Subject",
             IsActive = true,
             IsSystemSubject = true,
-            OidcSubjectId = null,
         });
         await _dbContext.SaveChangesAsync();
 
@@ -173,7 +189,6 @@ public class RecoveryModeCheckServiceTests : IDisposable
             Name = "Inactive User",
             IsActive = false,
             IsSystemSubject = false,
-            OidcSubjectId = null,
         });
         await _dbContext.SaveChangesAsync();
 
@@ -193,7 +208,6 @@ public class RecoveryModeCheckServiceTests : IDisposable
             Name = "Orphaned User",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = null,
         });
         await _dbContext.SaveChangesAsync();
 

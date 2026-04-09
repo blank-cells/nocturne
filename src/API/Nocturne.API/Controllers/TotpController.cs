@@ -69,6 +69,18 @@ public class TotpController : ControllerBase
         if (subject == null)
             return Problem(detail: "User account not found", statusCode: 400, title: "Bad Request");
 
+        // TOTP is a second factor; require at least one primary factor (passkey or OIDC link)
+        // so a user cannot end up with only TOTP configured.
+        var primaryFactorCount = await _subjectService.CountPrimaryAuthFactorsAsync(auth.SubjectId.Value);
+        if (primaryFactorCount < 1)
+        {
+            return BadRequest(new
+            {
+                error = "no_primary_factor",
+                message = "Configure a passkey or linked sign-in method before enabling TOTP",
+            });
+        }
+
         var result = await _totpService.GenerateSetupAsync(auth.SubjectId.Value, subject.Name);
 
         return Ok(new TotpSetupResponse
@@ -147,14 +159,8 @@ public class TotpController : ControllerBase
         if (auth == null || !auth.IsAuthenticated || auth.SubjectId == null)
             return Problem(detail: "Authentication required", statusCode: 401, title: "Unauthorized");
 
-        var guard = await _subjectService.HasAlternativeAuthMethodAsync(auth.SubjectId.Value, AuthMethodType.Totp);
-        if (!guard.HasAlternative)
-        {
-            return Problem(
-                detail: $"Cannot remove your last sign-in method. Your only remaining login method is your {guard.LastRemainingMethodName}.",
-                statusCode: 400, title: "Bad Request");
-        }
-
+        // No factor-count guard: TOTP is a second factor, so removing it can never
+        // lock a user out of their primary sign-in method.
         await _totpService.RemoveCredentialAsync(id, auth.SubjectId.Value);
 
         return NoContent();
@@ -197,8 +203,6 @@ public class TotpController : ControllerBase
             Id = subject.Id,
             Name = result.DisplayName ?? result.Username,
             Email = subject.Email,
-            OidcSubjectId = subject.OidcSubjectId,
-            OidcIssuer = subject.OidcIssuer,
         };
 
         var accessToken = _jwtService.GenerateAccessToken(subjectInfo, permissions, roles);

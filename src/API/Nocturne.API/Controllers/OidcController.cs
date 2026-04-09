@@ -24,6 +24,7 @@ public class OidcController : ControllerBase
 {
     private readonly IOidcAuthService _authService;
     private readonly IOidcProviderService _providerService;
+    private readonly ISubjectService _subjectService;
     private readonly IAuthAuditService _auditService;
     private readonly OidcOptions _options;
     private readonly IConfiguration _configuration;
@@ -35,6 +36,7 @@ public class OidcController : ControllerBase
     public OidcController(
         IOidcAuthService authService,
         IOidcProviderService providerService,
+        ISubjectService subjectService,
         IAuthAuditService auditService,
         IOptions<OidcOptions> options,
         IConfiguration configuration,
@@ -43,6 +45,7 @@ public class OidcController : ControllerBase
     {
         _authService = authService;
         _providerService = providerService;
+        _subjectService = subjectService;
         _auditService = auditService;
         _options = options.Value;
         _configuration = configuration;
@@ -212,6 +215,191 @@ public class OidcController : ControllerBase
         // Redirect to return URL
         var returnUrl = result.ReturnUrl ?? "/";
         return Redirect(returnUrl);
+    }
+
+    /// <summary>
+    /// Initiate the OIDC link flow.
+    /// Redirects an already-authenticated caller to the OIDC provider's authorization
+    /// endpoint so they can attach the external identity to their current account.
+    /// </summary>
+    [HttpGet("link")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Link(
+        [FromQuery] Guid provider,
+        [FromQuery] string? returnUrl = null)
+    {
+        var auth = HttpContext.GetAuthContext();
+        if (auth == null || !auth.IsAuthenticated || !auth.SubjectId.HasValue)
+            return Unauthorized(new { error = "not_authenticated", message = "Authentication required" });
+
+        if (!string.IsNullOrEmpty(returnUrl) && !IsValidReturnUrl(returnUrl))
+            return BadRequest(new { error = "invalid_return_url", message = "Invalid return URL" });
+
+        try
+        {
+            var req = await _authService.GenerateLinkAuthorizationUrlAsync(
+                provider, auth.SubjectId.Value, returnUrl);
+            SetLinkStateCookie(req.State, req.ExpiresAt);
+
+            _logger.LogInformation(
+                "Initiating OIDC link flow for subject {SubjectId} via provider {ProviderId}",
+                auth.SubjectId, req.ProviderId);
+
+            return Redirect(req.AuthorizationUrl);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to generate link authorization URL");
+            return BadRequest(new { error = "provider_error", message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Handle the OIDC link callback. Verifies the authorization code against the IdP,
+    /// then attaches the external identity to the currently-authenticated subject.
+    /// Does NOT issue new session cookies.
+    /// </summary>
+    [HttpGet("link/callback")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> LinkCallback(
+        [FromQuery] string? code,
+        [FromQuery] string? state,
+        [FromQuery] string? error,
+        [FromQuery] string? error_description)
+    {
+        var auth = HttpContext.GetAuthContext();
+        if (auth == null || !auth.IsAuthenticated || !auth.SubjectId.HasValue)
+        {
+            // Session expired mid-flow: the link-state cookie is useless without a session, so clear it.
+            ClearLinkStateCookie();
+            return Redirect("/auth/login?returnUrl=/settings/account");
+        }
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            _logger.LogWarning("OIDC provider returned error on link callback: {Error} - {Description}",
+                error, error_description);
+            ClearLinkStateCookie();
+            return RedirectToError(error, error_description ?? "Link failed");
+        }
+
+        if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
+        {
+            ClearLinkStateCookie();
+            return BadRequest(new { error = "missing_parameters", message = "Code and state are required" });
+        }
+
+        var expectedState = Request.Cookies[_options.Cookie.LinkStateCookieName];
+        if (string.IsNullOrEmpty(expectedState))
+            return RedirectToError("invalid_state", "Link state cookie not found — please try linking again");
+
+        ClearLinkStateCookie();
+
+        var result = await _authService.HandleLinkCallbackAsync(
+            code, state, expectedState,
+            auth.SubjectId.Value,
+            GetClientIpAddress(),
+            Request.Headers.UserAgent);
+
+        if (!result.Success)
+        {
+            await _auditService.LogAsync(AuthAuditEventType.FailedAuth, auth.SubjectId, success: false,
+                ipAddress: GetClientIpAddress(), userAgent: Request.Headers.UserAgent,
+                errorMessage: result.ErrorDescription,
+                detailsJson: JsonSerializer.Serialize(new { method = "oidc_link" }));
+
+            return RedirectToError(result.Error ?? "link_failed", result.ErrorDescription ?? "Link failed");
+        }
+
+        await _auditService.LogAsync(AuthAuditEventType.OidcIdentityLinked, auth.SubjectId, success: true,
+            ipAddress: GetClientIpAddress(), userAgent: Request.Headers.UserAgent,
+            detailsJson: JsonSerializer.Serialize(new { identityId = result.IdentityId }));
+
+        _logger.LogInformation(
+            "OIDC identity {IdentityId} linked to subject {SubjectId}",
+            result.IdentityId, auth.SubjectId);
+
+        var returnUrl = result.ReturnUrl ?? "/settings/account";
+        var separator = returnUrl.Contains('?') ? '&' : '?';
+        return Redirect($"{returnUrl}{separator}linked=success");
+    }
+
+    /// <summary>
+    /// List OIDC identities linked to the currently-authenticated subject.
+    /// </summary>
+    [HttpGet("link/identities")]
+    [RemoteQuery]
+    [ProducesResponseType(typeof(LinkedOidcIdentitiesResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<LinkedOidcIdentitiesResponse>> GetLinkedIdentities()
+    {
+        var auth = HttpContext.GetAuthContext();
+        if (auth == null || !auth.IsAuthenticated || !auth.SubjectId.HasValue)
+            return Unauthorized(new { error = "not_authenticated" });
+
+        var list = await _subjectService.GetLinkedOidcIdentitiesAsync(auth.SubjectId.Value);
+
+        return Ok(new LinkedOidcIdentitiesResponse
+        {
+            Identities = list.Select(i => new LinkedOidcIdentityDto
+            {
+                Id = i.Id,
+                ProviderId = i.ProviderId,
+                ProviderName = i.ProviderName,
+                ProviderIcon = i.ProviderIcon,
+                ProviderButtonColor = i.ProviderButtonColor,
+                Email = i.Email,
+                LinkedAt = i.LinkedAt,
+                LastUsedAt = i.LastUsedAt,
+            }).ToList(),
+        });
+    }
+
+    /// <summary>
+    /// Unlink an OIDC identity from the currently-authenticated subject.
+    /// Blocked if this would leave the subject with zero primary auth factors.
+    /// </summary>
+    [HttpDelete("link/identities/{identityId:guid}")]
+    [RemoteCommand]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UnlinkIdentity(Guid identityId)
+    {
+        var auth = HttpContext.GetAuthContext();
+        if (auth == null || !auth.IsAuthenticated || !auth.SubjectId.HasValue)
+            return Unauthorized();
+
+        // Symmetric factor-count rule is enforced atomically inside the service inside a
+        // serializable transaction to prevent TOCTOU races between concurrent removals.
+        var result = await _subjectService.TryRemoveOidcIdentityAsync(auth.SubjectId.Value, identityId);
+        switch (result)
+        {
+            case FactorRemovalResult.NotFound:
+                return NotFound();
+            case FactorRemovalResult.LastPrimaryFactor:
+                return Conflict(new
+                {
+                    error = "last_factor",
+                    message = "Cannot remove your only remaining sign-in method",
+                });
+            case FactorRemovalResult.Removed:
+                await _auditService.LogAsync(AuthAuditEventType.OidcIdentityUnlinked, auth.SubjectId, success: true,
+                    ipAddress: GetClientIpAddress(), userAgent: Request.Headers.UserAgent,
+                    detailsJson: JsonSerializer.Serialize(new { identityId }));
+
+                _logger.LogInformation(
+                    "OIDC identity {IdentityId} unlinked from subject {SubjectId}",
+                    identityId, auth.SubjectId);
+
+                return NoContent();
+            default:
+                throw new InvalidOperationException($"Unexpected FactorRemovalResult: {result}");
+        }
     }
 
     /// <summary>
@@ -410,6 +598,37 @@ public class OidcController : ControllerBase
     {
         Response.Cookies.Delete(
             _options.Cookie.StateCookieName,
+            new CookieOptions { Path = _options.Cookie.Path, Domain = _options.Cookie.Domain }
+        );
+    }
+
+    /// <summary>
+    /// Set the OIDC link state cookie
+    /// </summary>
+    private void SetLinkStateCookie(string state, DateTimeOffset expiresAt)
+    {
+        Response.Cookies.Append(
+            _options.Cookie.LinkStateCookieName,
+            state,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = _options.Cookie.Secure,
+                SameSite = MapSameSiteMode(_options.Cookie.SameSite),
+                Path = _options.Cookie.Path,
+                Domain = _options.Cookie.Domain,
+                Expires = expiresAt,
+            }
+        );
+    }
+
+    /// <summary>
+    /// Clear the OIDC link state cookie
+    /// </summary>
+    private void ClearLinkStateCookie()
+    {
+        Response.Cookies.Delete(
+            _options.Cookie.LinkStateCookieName,
             new CookieOptions { Path = _options.Cookie.Path, Domain = _options.Cookie.Domain }
         );
     }
@@ -646,6 +865,29 @@ public class SessionInfo
     /// Whether this subject has platform-level admin access
     /// </summary>
     public bool IsPlatformAdmin { get; set; }
+}
+
+/// <summary>
+/// Response containing linked OIDC identities for the current subject
+/// </summary>
+public class LinkedOidcIdentitiesResponse
+{
+    public List<LinkedOidcIdentityDto> Identities { get; set; } = new();
+}
+
+/// <summary>
+/// DTO describing a single OIDC identity linked to a subject
+/// </summary>
+public class LinkedOidcIdentityDto
+{
+    public Guid Id { get; set; }
+    public Guid ProviderId { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public string? ProviderIcon { get; set; }
+    public string? ProviderButtonColor { get; set; }
+    public string? Email { get; set; }
+    public DateTime LinkedAt { get; set; }
+    public DateTime? LastUsedAt { get; set; }
 }
 
 #endregion

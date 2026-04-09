@@ -296,12 +296,6 @@ public class PasskeyService : IPasskeyService
             .CountAsync(c => c.SubjectId == subjectId);
     }
 
-    public async Task<bool> HasOidcLinkAsync(Guid subjectId)
-    {
-        return await _dbContext.Subjects
-            .AnyAsync(s => s.Id == subjectId && s.OidcSubjectId != null);
-    }
-
     private string CreateChallengeToken(string optionsJson, Guid? subjectId)
     {
         var payload = new ChallengeCookiePayload

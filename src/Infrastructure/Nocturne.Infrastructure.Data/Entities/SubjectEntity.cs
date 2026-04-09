@@ -46,20 +46,6 @@ public class SubjectEntity
     public string? AccessTokenPrefix { get; set; }
 
     /// <summary>
-    /// Link to OIDC identity - external 'sub' claim
-    /// </summary>
-    [MaxLength(255)]
-    [Column("oidc_subject_id")]
-    public string? OidcSubjectId { get; set; }
-
-    /// <summary>
-    /// OIDC issuer URL for this subject's identity
-    /// </summary>
-    [MaxLength(500)]
-    [Column("oidc_issuer")]
-    public string? OidcIssuer { get; set; }
-
-    /// <summary>
     /// Email address (from OIDC claims or manually set)
     /// </summary>
     [MaxLength(255)]
@@ -160,4 +146,9 @@ public class SubjectEntity
     /// TOTP credentials registered by this subject
     /// </summary>
     public ICollection<TotpCredentialEntity> TotpCredentials { get; set; } = new List<TotpCredentialEntity>();
+
+    /// <summary>
+    /// OIDC provider identities linked to this subject
+    /// </summary>
+    public ICollection<SubjectOidcIdentityEntity> OidcIdentities { get; set; } = new List<SubjectOidcIdentityEntity>();
 }

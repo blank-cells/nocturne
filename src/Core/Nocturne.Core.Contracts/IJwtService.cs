@@ -98,15 +98,6 @@ public class SubjectInfo
     /// </summary>
     public string? Email { get; set; }
 
-    /// <summary>
-    /// External OIDC subject ID (if linked to OIDC provider)
-    /// </summary>
-    public string? OidcSubjectId { get; set; }
-
-    /// <summary>
-    /// OIDC issuer URL (if linked to OIDC provider)
-    /// </summary>
-    public string? OidcIssuer { get; set; }
 }
 
 /// <summary>

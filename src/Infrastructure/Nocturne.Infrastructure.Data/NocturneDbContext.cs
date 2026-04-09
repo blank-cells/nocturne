@@ -464,6 +464,11 @@ public class NocturneDbContext : DbContext
     /// </summary>
     public DbSet<ChatIdentityPendingLinkEntity> ChatIdentityPendingLinks { get; set; }
 
+    /// <summary>
+    /// Gets or sets the SubjectOidcIdentities table — links subjects to OIDC provider identities.
+    /// </summary>
+    public DbSet<SubjectOidcIdentityEntity> SubjectOidcIdentities { get; set; }
+
 
     /// <summary>
     /// Configure the database model and relationships
@@ -870,12 +875,6 @@ public class NocturneDbContext : DbContext
             .Entity<SubjectEntity>()
             .HasIndex(s => s.AccessTokenHash)
             .HasDatabaseName("ix_subjects_access_token_hash")
-            .IsUnique();
-
-        modelBuilder
-            .Entity<SubjectEntity>()
-            .HasIndex(s => new { s.OidcSubjectId, s.OidcIssuer })
-            .HasDatabaseName("ix_subjects_oidc_identity")
             .IsUnique();
 
         modelBuilder
@@ -1792,6 +1791,28 @@ public class NocturneDbContext : DbContext
         {
             b.HasKey(e => e.Token);
             b.HasIndex(e => e.ExpiresAt).HasDatabaseName("ix_pending_links_expires_at");
+        });
+
+        // Subject OIDC identities — join table for multi-provider OIDC linking
+        modelBuilder.Entity<SubjectOidcIdentityEntity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasValueGenerator<GuidV7ValueGenerator>();
+
+            e.HasIndex(x => new { x.OidcSubjectId, x.Issuer }).IsUnique()
+                .HasDatabaseName("ix_subject_oidc_identities_external");
+            e.HasIndex(x => x.SubjectId)
+                .HasDatabaseName("ix_subject_oidc_identities_subject_id");
+
+            e.HasOne(x => x.Subject)
+                .WithMany(s => s.OidcIdentities)
+                .HasForeignKey(x => x.SubjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.Provider)
+                .WithMany()
+                .HasForeignKey(x => x.ProviderId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 

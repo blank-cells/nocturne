@@ -180,7 +180,6 @@ public class TenantSetupMiddlewareTests : IDisposable
             Name = "Healthy User",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = null,
         });
         _dbContext.PasskeyCredentials.Add(new PasskeyCredentialEntity
         {
@@ -204,7 +203,6 @@ public class TenantSetupMiddlewareTests : IDisposable
             Name = "Orphaned User",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = null,
         });
         _dbContext.TenantMembers.Add(new TenantMemberEntity
         {
@@ -274,7 +272,6 @@ public class TenantSetupMiddlewareTests : IDisposable
             Name = "Orphaned User",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = null,
         });
         _dbContext.TenantMembers.Add(new TenantMemberEntity
         {
@@ -308,7 +305,6 @@ public class TenantSetupMiddlewareTests : IDisposable
             Name = "OIDC User",
             IsActive = true,
             IsSystemSubject = false,
-            OidcSubjectId = "oidc-sub-123",
         });
         _dbContext.PasskeyCredentials.Add(new PasskeyCredentialEntity
         {
