@@ -144,15 +144,6 @@ public interface ISubjectService
     /// </summary>
     /// <returns>The Public subject</returns>
     Task<Subject?> InitializePublicSubjectAsync();
-
-    /// <summary>
-    /// Check whether a subject has at least one alternative authentication method
-    /// beyond the specified type. Used to prevent removal of the last sign-in method.
-    /// </summary>
-    /// <param name="subjectId">Subject identifier</param>
-    /// <param name="excluding">The auth method type being removed</param>
-    /// <returns>Guard result indicating whether alternatives exist</returns>
-    Task<AuthMethodGuardResult> HasAlternativeAuthMethodAsync(Guid subjectId, AuthMethodType excluding);
 }
 
 /// <summary>
@@ -170,27 +161,6 @@ public class SubjectCreationResult
     /// </summary>
     public string? AccessToken { get; set; }
 }
-
-/// <summary>
-/// Types of authentication methods a subject can have
-/// </summary>
-public enum AuthMethodType
-{
-    Passkey,
-    Totp,
-    Oidc,
-}
-
-/// <summary>
-/// Result of checking whether a subject has alternative authentication methods
-/// </summary>
-/// <param name="HasAlternative">True if the subject has at least one auth method beyond the excluded type</param>
-/// <param name="LastRemainingMethodName">If no alternatives exist, the name of the last remaining method of the excluded type</param>
-/// <param name="LastRemainingMethodType">If no alternatives exist, the type of the last remaining method</param>
-public record AuthMethodGuardResult(
-    bool HasAlternative,
-    string? LastRemainingMethodName,
-    AuthMethodType? LastRemainingMethodType);
 
 /// <summary>
 /// Filter criteria for querying subjects

@@ -286,7 +286,10 @@ public class OidcController : ControllerBase
         }
 
         if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
+        {
+            ClearLinkStateCookie();
             return BadRequest(new { error = "missing_parameters", message = "Code and state are required" });
+        }
 
         var expectedState = Request.Cookies[_options.Cookie.LinkStateCookieName];
         if (string.IsNullOrEmpty(expectedState))

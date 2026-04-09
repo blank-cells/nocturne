@@ -178,7 +178,7 @@ public class PasskeyServiceTests
     [Trait("Category", "Unit")]
     public async Task RemoveCredentialAsync_RemovesLastPasskey_GuardIsNowOnController()
     {
-        // Guard logic has been moved to the controller via SubjectService.HasAlternativeAuthMethodAsync.
+        // Guard logic has been moved to the controller via SubjectService.CountPrimaryAuthFactorsAsync.
         // PasskeyService now simply removes the credential without checking alternatives.
         var cred = CreateCredentialEntity(_subjectId);
         _dbContext.PasskeyCredentials.Add(cred);

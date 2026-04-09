@@ -74,29 +74,20 @@ public class SubjectService : ISubjectService
             var entity = identity.Subject;
 
             // Update email/name if provided
-            var needsUpdate = false;
-
             if (!string.IsNullOrEmpty(email) && entity.Email != email)
             {
                 entity.Email = email;
-                needsUpdate = true;
             }
 
             if (!string.IsNullOrEmpty(name) && entity.Name != name)
             {
                 entity.Name = name;
-                needsUpdate = true;
             }
 
-            // Update LastUsedAt on the identity row
+            // Always bump LastUsedAt on the identity row and the subject's UpdatedAt.
             identity.LastUsedAt = DateTime.UtcNow;
-            needsUpdate = true;
-
-            if (needsUpdate)
-            {
-                entity.UpdatedAt = DateTime.UtcNow;
-                await _dbContext.SaveChangesAsync();
-            }
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
 
             _logger.LogDebug(
                 "Found existing subject {SubjectId} for OIDC identity {OidcSubjectId}",
@@ -597,59 +588,6 @@ public class SubjectService : ISubjectService
     }
 
     /// <inheritdoc />
-    public async Task<AuthMethodGuardResult> HasAlternativeAuthMethodAsync(Guid subjectId, AuthMethodType excluding)
-    {
-        var hasOidc = excluding != AuthMethodType.Oidc
-            && await _dbContext.SubjectOidcIdentities.AnyAsync(i => i.SubjectId == subjectId);
-
-        var passkeyCount = await _dbContext.PasskeyCredentials.CountAsync(c => c.SubjectId == subjectId);
-        var totpCount = await _dbContext.TotpCredentials.CountAsync(c => c.SubjectId == subjectId);
-
-        // Count alternatives: other method types, OR >1 of the same type being removed
-        var otherPasskeys = excluding == AuthMethodType.Passkey ? 0 : passkeyCount;
-        var otherTotp = excluding == AuthMethodType.Totp ? 0 : totpCount;
-        var sameTypeCount = excluding switch
-        {
-            AuthMethodType.Passkey => passkeyCount,
-            AuthMethodType.Totp => totpCount,
-            _ => 0,
-        };
-
-        // User can delete if they have other method types OR >1 of the same type
-        if (hasOidc || otherPasskeys > 0 || otherTotp > 0 || sameTypeCount > 1)
-        {
-            return new AuthMethodGuardResult(HasAlternative: true, LastRemainingMethodName: null, LastRemainingMethodType: null);
-        }
-
-        // This is the user's last credential and only auth method type.
-        string? lastMethodName = null;
-        AuthMethodType? lastMethodType = excluding;
-
-        switch (excluding)
-        {
-            case AuthMethodType.Passkey:
-                lastMethodName = await _dbContext.PasskeyCredentials
-                    .Where(c => c.SubjectId == subjectId)
-                    .Select(c => c.Label ?? "passkey")
-                    .FirstOrDefaultAsync();
-                break;
-
-            case AuthMethodType.Totp:
-                lastMethodName = await _dbContext.TotpCredentials
-                    .Where(c => c.SubjectId == subjectId)
-                    .Select(c => c.Label ?? "TOTP application")
-                    .FirstOrDefaultAsync();
-                break;
-
-            case AuthMethodType.Oidc:
-                lastMethodName = "OIDC identity";
-                break;
-        }
-
-        return new AuthMethodGuardResult(HasAlternative: false, LastRemainingMethodName: lastMethodName, LastRemainingMethodType: lastMethodType);
-    }
-
-    /// <inheritdoc />
     public async Task<IReadOnlyList<SubjectOidcIdentity>> GetLinkedOidcIdentitiesAsync(Guid subjectId)
     {
         var entities = await _dbContext.SubjectOidcIdentities
@@ -779,19 +717,13 @@ public class SubjectService : ISubjectService
             Permissions = new List<string>(),
         };
 
-        // Determine type based on OIDC linkage (via join table) or access token
-        if (entity.OidcIdentities.Count > 0)
-        {
-            subject.Type = SubjectType.User;
-        }
-        else if (!string.IsNullOrEmpty(entity.AccessTokenHash))
-        {
-            subject.Type = SubjectType.Device;
-        }
-        else
-        {
-            subject.Type = SubjectType.Service;
-        }
+        // Determine type from columns on the entity itself (no navigation required).
+        // Device/Service subjects are distinguished by the presence of an access token hash;
+        // everything else is treated as a User (including OIDC-linked users whose identities
+        // live in the SubjectOidcIdentities join table).
+        subject.Type = !string.IsNullOrEmpty(entity.AccessTokenHash)
+            ? SubjectType.Device
+            : SubjectType.User;
 
         // Map roles and aggregate permissions
         var permissions = new HashSet<string>();
