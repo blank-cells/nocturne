@@ -126,6 +126,33 @@ Domain models use **mills-first** timestamps. `Entry.Mills` (Unix milliseconds) 
 - UUID v7 for new records; `OriginalId` preserved for MongoDB migration compatibility
 - Row Level Security for multitenancy
 
+### Row Level Security
+
+Tenant-scoped tables enforce isolation via PostgreSQL Row Level Security.
+Two roles are used:
+
+- `nocturne_migrator` — owns the schema, runs migrations. NOSUPERUSER NOBYPASSRLS.
+- `nocturne_app` — runtime DbContext pool. Owns nothing. NOSUPERUSER NOBYPASSRLS.
+
+FORCE ROW LEVEL SECURITY is enabled on every tenant-scoped table, so even
+the migrator obeys policies. **Data migrations cannot SELECT or UPDATE
+tenant-scoped tables without first setting the tenant context**:
+
+    SELECT set_config('app.current_tenant_id', '<uuid>', false);
+    -- then query/update
+
+Schema-only migrations (CREATE/ALTER TABLE, CREATE INDEX, etc.) are
+unaffected. If a data migration needs to touch multiple tenants, loop over
+tenants and set the GUC per iteration.
+
+Roles are created by `docs/postgres/container-init/00-init.sh` (container
+init, bind-mounted into the Postgres container) or
+`docs/postgres/bootstrap-roles.sql` (bring-your-own PostgreSQL, run once
+manually as superuser). The BYO script is intentionally NOT in the
+container-init directory — it refuses to run with placeholder passwords
+and would abort container startup if Postgres picked it up. Never GRANT
+BYPASSRLS to either role.
+
 ## Testing
 
 - **xUnit** + **FluentAssertions** + **Moq**

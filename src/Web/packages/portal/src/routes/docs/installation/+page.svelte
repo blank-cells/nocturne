@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ArrowRight, Terminal, LayoutDashboard, Cloud } from "@lucide/svelte";
+    import { ArrowRight, Terminal, LayoutDashboard, Cloud, Database } from "@lucide/svelte";
     import SystemRequirements from "$lib/components/docs/SystemRequirements.svelte";
 </script>
 
@@ -51,6 +51,27 @@
                     <p class="text-sm text-muted-foreground">
                         Deploy using the Portainer web interface. Great for managing your stack
                         visually without SSH access.
+                    </p>
+                </div>
+                <ArrowRight class="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors mt-1" />
+            </div>
+        </a>
+
+        <a
+            href="/docs/installation/byo-postgres"
+            class="p-6 rounded-xl border border-border/60 bg-card/50 hover:bg-card hover:border-primary/30 transition-colors group"
+        >
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
+                    <Database class="w-6 h-6 text-emerald-500" />
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
+                        Bring Your Own PostgreSQL
+                    </h3>
+                    <p class="text-sm text-muted-foreground">
+                        Use a managed PostgreSQL service (RDS, Cloud SQL, Supabase, Neon) or an
+                        existing shared database instance. Requires a one-time role bootstrap.
                     </p>
                 </div>
                 <ArrowRight class="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors mt-1" />

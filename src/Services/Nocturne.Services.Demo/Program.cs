@@ -6,6 +6,7 @@ using Nocturne.Core.Contracts;
 using Nocturne.Core.Contracts.Repositories;
 using Nocturne.Core.Contracts.V4.Repositories;
 using Nocturne.Infrastructure.Data.Extensions;
+using Nocturne.Infrastructure.Data.Interceptors;
 using Nocturne.Infrastructure.Data.Repositories.V4;
 using Nocturne.Services.Demo.Configuration;
 using Nocturne.Services.Demo.Services;
@@ -201,11 +202,27 @@ public class Program
             }
         );
 
-        // Run database migrations
+        // Run database migrations under the migrator role
+        var migratorConnectionString = builder.Configuration.GetConnectionString(
+            $"{ServiceNames.PostgreSql}-migrator");
         try
         {
+            if (string.IsNullOrWhiteSpace(migratorConnectionString))
+            {
+                throw new InvalidOperationException(
+                    $"ConnectionStrings:{ServiceNames.PostgreSql}-migrator is required. " +
+                    "See docs/postgres/bootstrap-roles.sql.");
+            }
+
+            DatabaseInitializationExtensions.ValidateRoleSeparation(
+                postgresConnectionString!, migratorConnectionString);
+
             Console.WriteLine("[Demo Service] Running PostgreSQL database migrations...");
-            await app.Services.MigrateDatabaseAsync();
+            using var migrationScope = app.Services.CreateScope();
+            var interceptor = migrationScope.ServiceProvider.GetRequiredService<TenantConnectionInterceptor>();
+            var migrationLogger = migrationScope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            await DatabaseInitializationExtensions.RunMigrationsAsync(
+                migratorConnectionString, migrationLogger, interceptor);
             Console.WriteLine(
                 "[Demo Service] PostgreSQL database migrations completed successfully."
             );

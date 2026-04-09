@@ -108,12 +108,14 @@ public static class DemoServiceExtensions
             .AddProject<TDemoService>(options.ResourceName)
             .WithHttpEndpoint(port: options.Port, name: "http");
 
-        // Configure database connection if provided
+        // Wait for the database to come up, but do NOT call WithReference —
+        // that would auto-inject a single ConnectionStrings__nocturne-postgres
+        // env var using the bootstrap Postgres superuser, bypassing the
+        // two-role RLS model. The caller wires both connection strings via
+        // WithNocturneDatabase after this method returns.
         if (database != null)
         {
-            demoService
-                .WaitFor(database)
-                .WithReference(database);
+            demoService.WaitFor(database);
         }
 
         // Pass demo configuration via environment variables

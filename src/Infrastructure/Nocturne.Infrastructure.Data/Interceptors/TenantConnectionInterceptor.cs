@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -7,17 +8,27 @@ namespace Nocturne.Infrastructure.Data.Interceptors;
 /// EF Core connection interceptor that sets the PostgreSQL session variable
 /// for Row-Level Security tenant isolation.
 ///
-/// On connection open: SET app.current_tenant_id = '{tenantId}'
+/// On connection open: SELECT set_config('app.current_tenant_id', $1, false)
 /// On connection close: RESET app.current_tenant_id
 ///
-/// This ensures RLS policies can enforce tenant isolation even if the
-/// application-layer global query filters are bypassed.
+/// Additionally, on the first open against any given connection string, the
+/// interceptor verifies that the connected role is neither a superuser nor
+/// has BYPASSRLS. Both attributes silently defeat Row Level Security, so
+/// Nocturne refuses to start when it detects them. The check result is
+/// cached per connection string so it is paid exactly once per data source.
+///
+/// This class is safe to register as a singleton. All mutable state is
+/// confined to a <see cref="ConcurrentDictionary{TKey, TValue}"/>.
 /// </summary>
 public class TenantConnectionInterceptor : DbConnectionInterceptor
 {
+    private readonly ConcurrentDictionary<string, bool> _verifiedRoles = new(StringComparer.Ordinal);
+
     /// <summary>
     /// Executes asynchronously when a connection is opened.
-    /// Sets the PostgreSQL session variable for tenant isolation.
+    /// Verifies the role attributes (once per connection string) and sets
+    /// the PostgreSQL session variable for tenant isolation when a tenant
+    /// is in scope.
     /// </summary>
     /// <param name="connection">The database connection.</param>
     /// <param name="eventData">Information about the connection event.</param>
@@ -28,10 +39,16 @@ public class TenantConnectionInterceptor : DbConnectionInterceptor
         ConnectionEndEventData eventData,
         CancellationToken cancellationToken = default)
     {
+        await EnsureRoleIsSafeAsync(connection, cancellationToken);
+
         if (eventData.Context is NocturneDbContext { TenantId: var tenantId } && tenantId != Guid.Empty)
         {
             await using var cmd = connection.CreateCommand();
-            cmd.CommandText = $"SET app.current_tenant_id = '{tenantId}'";
+            cmd.CommandText = "SELECT set_config('app.current_tenant_id', @tenant_id, false)";
+            var param = cmd.CreateParameter();
+            param.ParameterName = "tenant_id";
+            param.Value = tenantId.ToString();
+            cmd.Parameters.Add(param);
             await cmd.ExecuteNonQueryAsync(cancellationToken);
         }
     }
@@ -63,5 +80,44 @@ public class TenantConnectionInterceptor : DbConnectionInterceptor
         }
 
         return result;
+    }
+
+    private async Task EnsureRoleIsSafeAsync(DbConnection connection, CancellationToken cancellationToken)
+    {
+        var key = connection.ConnectionString ?? string.Empty;
+        if (_verifiedRoles.ContainsKey(key))
+        {
+            return;
+        }
+
+        // If the check itself fails (network, permission denied on pg_roles, etc.)
+        // we let the exception propagate. Do NOT cache and do NOT silently proceed.
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "SELECT current_user, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user";
+
+        string user;
+        bool isSuper;
+        bool bypassRls;
+        await using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
+        {
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                throw new InvalidOperationException(
+                    "Role attribute self-check could not determine the current database user.");
+            }
+
+            user = reader.GetString(0);
+            isSuper = reader.GetBoolean(1);
+            bypassRls = reader.GetBoolean(2);
+        }
+
+        if (isSuper || bypassRls)
+        {
+            throw new InvalidOperationException(
+                $"Database role '{user}' bypasses Row Level Security (superuser={isSuper}, bypassrls={bypassRls}). " +
+                "Nocturne refuses to start with this role. Use 'nocturne_app' for the runtime connection string.");
+        }
+
+        _verifiedRoles.TryAdd(key, true);
     }
 }

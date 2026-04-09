@@ -14,12 +14,18 @@
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
       POSTGRES_USER: "\${POSTGRES_USERNAME}"
       POSTGRES_PASSWORD: "\${POSTGRES_PASSWORD}"
+      NOCTURNE_MIGRATOR_PASSWORD: "\${NOCTURNE_MIGRATOR_PASSWORD}"
+      NOCTURNE_APP_PASSWORD: "\${NOCTURNE_APP_PASSWORD}"
     expose:
       - "5432"
     volumes:
       - type: "volume"
         target: "/var/lib/postgresql/data"
         source: "nocturne-postgres-data"
+      - type: "bind"
+        source: "./pg-init"
+        target: "/docker-entrypoint-initdb.d"
+        read_only: true
     networks:
       - "nocturne"
     restart: "unless-stopped"
@@ -29,7 +35,8 @@
     environment:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       HTTPS_PORTS: "\${NOCTURNE_API_PORT}"
-      ConnectionStrings__nocturne-postgres: "Host=nocturne-postgres-server;Port=5432;Username=\${POSTGRES_USERNAME};Password=\${POSTGRES_PASSWORD};Database=nocturne"
+      ConnectionStrings__nocturne-postgres: "Host=nocturne-postgres-server;Port=5432;Username=nocturne_app;Password=\${NOCTURNE_APP_PASSWORD};Database=nocturne"
+      ConnectionStrings__nocturne-postgres-migrator: "Host=nocturne-postgres-server;Port=5432;Username=nocturne_migrator;Password=\${NOCTURNE_MIGRATOR_PASSWORD};Database=nocturne"
       INSTANCE_KEY: "\${INSTANCE_KEY}"
     ports:
       - "\${NOCTURNE_API_PORT}:\${NOCTURNE_API_PORT}"
@@ -67,12 +74,18 @@ volumes:
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
       POSTGRES_USER: "\${POSTGRES_USERNAME}"
       POSTGRES_PASSWORD: "\${POSTGRES_PASSWORD}"
+      NOCTURNE_MIGRATOR_PASSWORD: "\${NOCTURNE_MIGRATOR_PASSWORD}"
+      NOCTURNE_APP_PASSWORD: "\${NOCTURNE_APP_PASSWORD}"
     expose:
       - "5432"
     volumes:
       - type: "volume"
         target: "/var/lib/postgresql/data"
         source: "nocturne-postgres-data"
+      - type: "bind"
+        source: "./pg-init"
+        target: "/docker-entrypoint-initdb.d"
+        read_only: true
     networks:
       - "nocturne"
     restart: "unless-stopped"
@@ -82,7 +95,8 @@ volumes:
     environment:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       HTTPS_PORTS: "\${NOCTURNE_API_PORT}"
-      ConnectionStrings__nocturne-postgres: "Host=nocturne-postgres-server;Port=5432;Username=\${POSTGRES_USERNAME};Password=\${POSTGRES_PASSWORD};Database=nocturne"
+      ConnectionStrings__nocturne-postgres: "Host=nocturne-postgres-server;Port=5432;Username=nocturne_app;Password=\${NOCTURNE_APP_PASSWORD};Database=nocturne"
+      ConnectionStrings__nocturne-postgres-migrator: "Host=nocturne-postgres-server;Port=5432;Username=nocturne_migrator;Password=\${NOCTURNE_MIGRATOR_PASSWORD};Database=nocturne"
       INSTANCE_KEY: "\${INSTANCE_KEY}"
       DemoService__Enabled: "false"
     ports:
@@ -156,8 +170,15 @@ volumes:
     driver: "local"`;
 
     const envTemplate = `# Core settings
-POSTGRES_USERNAME=nocturne
-POSTGRES_PASSWORD=change-me-to-a-secure-password
+# Bootstrap superuser — only used by the Postgres image at first start to
+# create nocturne_migrator and nocturne_app via the bundled pg-init/00-init.sh.
+POSTGRES_USERNAME=nocturne_bootstrap
+POSTGRES_PASSWORD=change-me-bootstrap-password
+# Nocturne runtime roles. The migrator owns the schema and runs migrations;
+# the app role runs at request time with NOBYPASSRLS so Row Level Security
+# enforces tenant isolation. Do not reuse the bootstrap password here.
+NOCTURNE_MIGRATOR_PASSWORD=change-me-migrator-password
+NOCTURNE_APP_PASSWORD=change-me-app-password
 INSTANCE_KEY=change-me-min-12-characters
 NOCTURNE_API_PORT=8443
 NOCTURNE_API_IMAGE=ghcr.io/nightscout/nocturne-api:latest
@@ -180,6 +201,17 @@ LIBRELINKUP_REGION=eu`;
 </script>
 
 <div class="space-y-6 mb-8">
+    <div class="p-4 rounded-lg border border-amber-500/30 bg-amber-500/5 text-sm text-foreground">
+        <p class="font-medium mb-1">Two-role PostgreSQL setup</p>
+        <p class="text-muted-foreground">
+            Nocturne uses two separate PostgreSQL users for defense-in-depth against PHI leakage.
+            <code class="text-xs bg-muted/50 px-1 py-0.5 rounded">nocturne_migrator</code> runs schema
+            migrations; <code class="text-xs bg-muted/50 px-1 py-0.5 rounded">nocturne_app</code> runs at
+            request time with no DDL privileges and cannot bypass Row Level Security. The init script
+            mounted at <code class="text-xs bg-muted/50 px-1 py-0.5 rounded">./pg-init</code> creates both
+            roles at first container start. Do not consolidate them.
+        </p>
+    </div>
     <div>
         <p class="text-sm font-medium text-foreground mb-2">docker-compose.yml</p>
         <pre class="p-4 rounded-lg bg-muted/50 border border-border/60 text-sm overflow-x-auto max-h-[500px]"><code>{compose}</code></pre>

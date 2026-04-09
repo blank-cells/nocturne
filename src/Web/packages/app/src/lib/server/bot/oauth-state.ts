@@ -11,7 +11,13 @@ import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
  *
  * Wire format: `base64url(json).hexSig`.
  * Payload: `{ slug, nonce, exp }` (exp is a unix-ms deadline).
- * Signature: HMAC-SHA256 over the base64url payload using BOT_LINK_HMAC_SECRET.
+ * Signature: HMAC-SHA256 over the base64url payload using INSTANCE_KEY.
+ *
+ * INSTANCE_KEY is reused here rather than a separate BOT_LINK_HMAC_SECRET
+ * because both secrets have the same threat model (tenant-wide shared
+ * secret held by the web process) and the OAuth state is short-lived
+ * (5 minutes), so even if INSTANCE_KEY is rotated the user impact is
+ * dominated by JWT invalidation, not state token invalidation.
  */
 
 export interface OAuthLinkStatePayload {
@@ -26,11 +32,11 @@ export interface OAuthLinkStatePayload {
 const STATE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes
 
 function getSecret(): string {
-	const secret = process.env.BOT_LINK_HMAC_SECRET;
+	const secret = process.env.INSTANCE_KEY;
 	if (!secret || secret.length < 16) {
 		throw new Error(
-			"BOT_LINK_HMAC_SECRET is required for Discord OAuth2 link flow. " +
-				"Generate one with: openssl rand -hex 32",
+			"INSTANCE_KEY is required for Discord OAuth2 link flow (used as the HMAC secret). " +
+				"Set it via Aspire Parameters:instance-key or the INSTANCE_KEY environment variable.",
 		);
 	}
 	return secret;

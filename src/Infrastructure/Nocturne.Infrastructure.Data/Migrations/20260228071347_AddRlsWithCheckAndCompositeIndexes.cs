@@ -38,14 +38,22 @@ namespace Nocturne.Infrastructure.Data.Migrations
         {
             // Drop existing USING-only RLS policies and recreate with both
             // USING (read enforcement) and WITH CHECK (write enforcement) clauses.
+            // Use missing_ok := true + NULLIF so the policy expression is safe
+            // to evaluate when the GUC is unset (e.g. during EF migrations
+            // running under the migrator role). An unset GUC collapses to
+            // NULL, tenant_id = NULL is NULL, treated as false — rows
+            // excluded from SELECT/UPDATE/DELETE and INSERTs rejected. This
+            // matters for later schema migrations that add self-referencing
+            // FKs (PostgreSQL's internal FK validation query runs through
+            // the policy and would otherwise fail on ''::uuid).
             foreach (var table in TenantScopedTables)
             {
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS tenant_isolation ON {table};");
                 migrationBuilder.Sql(
                     $"""
                     CREATE POLICY tenant_isolation ON {table}
-                        USING (tenant_id = current_setting('app.current_tenant_id')::uuid)
-                        WITH CHECK (tenant_id = current_setting('app.current_tenant_id')::uuid);
+                        USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)
+                        WITH CHECK (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
                     """);
             }
 
@@ -282,14 +290,16 @@ namespace Nocturne.Infrastructure.Data.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            // Revert to USING-only policies (read enforcement only).
+            // Revert to USING-only policies (read enforcement only). Keep
+            // the NULLIF + missing_ok form so the Down path is also safe to
+            // run under the migrator without a tenant context set.
             foreach (var table in TenantScopedTables)
             {
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS tenant_isolation ON {table};");
                 migrationBuilder.Sql(
                     $"""
                     CREATE POLICY tenant_isolation ON {table}
-                        USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
+                        USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
                     """);
             }
 

@@ -1,7 +1,11 @@
 <script lang="ts" module>
     const coreVars = [
-        { name: "POSTGRES_USERNAME", description: "PostgreSQL database username", example: "nocturne" },
-        { name: "POSTGRES_PASSWORD", description: "PostgreSQL database password", example: "your-secure-password" },
+        { name: "POSTGRES_USERNAME", description: "PostgreSQL bootstrap superuser. Only used by the Postgres image at first container start to create the nocturne_migrator and nocturne_app roles.", example: "nocturne_bootstrap" },
+        { name: "POSTGRES_PASSWORD", description: "Password for the bootstrap superuser above.", example: "your-bootstrap-password" },
+        { name: "NOCTURNE_MIGRATOR_PASSWORD", description: "Password for the nocturne_migrator role. This role owns the schema and runs EF migrations on startup.", example: "your-migrator-password" },
+        { name: "NOCTURNE_APP_PASSWORD", description: "Password for the nocturne_app role. This is the runtime connection and cannot bypass Row Level Security.", example: "your-app-password" },
+        { name: "NOCTURNE_POSTGRES", description: "Runtime connection string (app role). Exposed to services as ConnectionStrings__nocturne-postgres.", example: "Host=nocturne-postgres-server;Port=5432;Username=nocturne_app;Password=...;Database=nocturne" },
+        { name: "NOCTURNE_POSTGRES_MIGRATOR", description: "Migration connection string (migrator role). Exposed to services as ConnectionStrings__nocturne-postgres-migrator.", example: "Host=nocturne-postgres-server;Port=5432;Username=nocturne_migrator;Password=...;Database=nocturne" },
         { name: "INSTANCE_KEY", description: "Instance key for JWT signing, encryption, and service authentication", example: "your-instance-key-min-12-chars" },
         { name: "NOCTURNE_API_PORT", description: "Port for the Nocturne API service", example: "8443" },
         { name: "NOCTURNE_API_IMAGE", description: "Docker image for the Nocturne API", example: "ghcr.io/nightscout/nocturne-api:latest" },

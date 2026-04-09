@@ -481,6 +481,21 @@ public class NocturneDbContext : DbContext
 
         // Configure per-tenant global query filters
         ConfigureTenantFilters(modelBuilder);
+
+        // Normalize primary-key column naming. EF Core's default convention
+        // emits the C# property name verbatim for the column, which produces
+        // case-sensitive quoted "Id" columns in PostgreSQL. Some entities
+        // explicitly mapped Id -> id but most did not, leaving the schema
+        // inconsistent. Force every Id property to use snake_case "id" to
+        // match the rest of the schema.
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var idProperty = entityType.FindProperty("Id");
+            if (idProperty is not null && idProperty.GetColumnName() != "id")
+            {
+                idProperty.SetColumnName("id");
+            }
+        }
     }
 
     private static void ConfigureIndexes(ModelBuilder modelBuilder)

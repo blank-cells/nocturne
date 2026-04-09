@@ -37,8 +37,20 @@ class Program
         var useRemoteDb = builder.Configuration.GetValue(
             "PostgreSql:UseRemoteDatabase", false);
 
+        // Path from apphost out to the repository root. Computed early because
+        // the Postgres container bind-mounts canonical init scripts from it,
+        // and the web block below also needs it.
+        var solutionRoot = Path.GetFullPath(
+            Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
+
+        IResourceBuilder<PostgresServerResource>? postgresServer = null;
         IResourceBuilder<PostgresDatabaseResource>? managedDatabase = null;
-        IResourceBuilder<IResourceWithConnectionString>? remoteDatabase = null;
+        IResourceBuilder<ParameterResource>? postgresAppPassword = null;
+        IResourceBuilder<ParameterResource>? postgresMigratorPassword = null;
+        string? remoteAppConnectionString = null;
+        string? remoteMigratorConnectionString = null;
+        var dbName = builder.Configuration["Parameters:postgres-database"]
+            ?? ServiceNames.Defaults.PostgresDatabase;
 
         if (!useRemoteDb)
         {
@@ -49,15 +61,39 @@ class Program
             var postgresPassword = builder.AddParameter(
                 ServiceNames.Parameters.PostgresPassword, secret: true);
 
-            var dbName = builder.Configuration["Parameters:postgres-database"]
-                ?? ServiceNames.Defaults.PostgresDatabase;
+            // Non-bootstrap role passwords. The Postgres container's init
+            // script reads them via env vars and creates nocturne_migrator
+            // and nocturne_app at first container start.
+            postgresMigratorPassword = builder.AddParameter(
+                ServiceNames.Parameters.PostgresMigratorPassword, secret: true);
+            postgresAppPassword = builder.AddParameter(
+                ServiceNames.Parameters.PostgresAppPassword, secret: true);
+
+            // Container init lives in docs/postgres/container-init. Only
+            // 00-init.sh is mounted into /docker-entrypoint-initdb.d so the
+            // Postgres image runs it on first start. The BYO superuser
+            // script lives at docs/postgres/bootstrap-roles.sql and is NOT
+            // mounted — it intentionally refuses to run with its placeholder
+            // passwords, which would abort container startup if picked up.
+            var pgInitPath = Path.Combine(solutionRoot, "docs", "postgres", "container-init");
 
             var postgres = builder
                 .AddPostgres(ServiceNames.PostgreSql + "-server")
                 .WithLifetime(ContainerLifetime.Persistent)
                 .WithUserName(postgresUsername)
                 .WithPassword(postgresPassword)
-                .WithDataVolume(ServiceNames.Volumes.PostgresData);
+                .WithDataVolume(ServiceNames.Volumes.PostgresData)
+                .WithBindMount(pgInitPath, "/docker-entrypoint-initdb.d", isReadOnly: true)
+                // Force the Postgres image to create the Nocturne database at
+                // container init, BEFORE /docker-entrypoint-initdb.d/ scripts
+                // run, so 00-init.sh executes against the same database the
+                // app will later connect to. Without this, POSTGRES_DB
+                // defaults to POSTGRES_USER and the init script hands schema
+                // ownership on the wrong database. Aspire's AddDatabase below
+                // is a no-op once the database already exists.
+                .WithEnvironment("POSTGRES_DB", dbName)
+                .WithEnvironment("NOCTURNE_MIGRATOR_PASSWORD", postgresMigratorPassword)
+                .WithEnvironment("NOCTURNE_APP_PASSWORD", postgresAppPassword);
 
             if (builder.Environment.IsDevelopment())
             {
@@ -67,22 +103,28 @@ class Program
             postgres.PublishAsDockerComposeService((_, _) => { });
 
             managedDatabase = postgres.AddDatabase(ServiceNames.PostgreSql, dbName);
+            postgresServer = postgres;
             postgresUsername.WithParentRelationship(postgres);
             postgresPassword.WithParentRelationship(postgres);
+            postgresMigratorPassword.WithParentRelationship(postgres);
+            postgresAppPassword.WithParentRelationship(postgres);
         }
         else
         {
-            var remoteConnectionString = builder.Configuration.GetConnectionString(
+            remoteAppConnectionString = builder.Configuration.GetConnectionString(
                 ServiceNames.PostgreSql);
+            remoteMigratorConnectionString = builder.Configuration.GetConnectionString(
+                $"{ServiceNames.PostgreSql}-migrator");
 
-            if (string.IsNullOrWhiteSpace(remoteConnectionString))
+            if (string.IsNullOrWhiteSpace(remoteAppConnectionString)
+                || string.IsNullOrWhiteSpace(remoteMigratorConnectionString))
             {
                 throw new InvalidOperationException(
-                    $"Remote database enabled but connection string '{ServiceNames.PostgreSql}' " +
-                    "not found in AppHost configuration (ConnectionStrings section).");
+                    $"Remote database enabled but both connection strings must be provided: " +
+                    $"'ConnectionStrings:{ServiceNames.PostgreSql}' (runtime app role) and " +
+                    $"'ConnectionStrings:{ServiceNames.PostgreSql}-migrator' (schema migrator role). " +
+                    "See docs/postgres/bootstrap-roles.sql to create the two roles.");
             }
-
-            remoteDatabase = builder.AddConnectionString(ServiceNames.PostgreSql);
         }
 
         // ------------------------------------------------------------------
@@ -92,28 +134,33 @@ class Program
         var instanceKey = builder.AddParameter(
             ServiceNames.Parameters.InstanceKey, secret: true);
 
-        var discordBotToken      = builder.AddParameter("discord-bot-token",      secret: true);
-        var discordPublicKey     = builder.AddParameter("discord-public-key",     secret: false);
-        var discordApplicationId = builder.AddParameter("discord-application-id", secret: false);
-        var discordClientSecret  = builder.AddParameter("discord-client-secret",  secret: true);
+        // Discord bot credentials. Optional — only required if Discord bot
+        // features are enabled for a deployment. Empty-string defaults let
+        // AppHost start without requiring users to invent values they won't
+        // use.
+        var discordBotToken      = builder.AddParameter("discord-bot-token",      "", secret: true);
+        var discordPublicKey     = builder.AddParameter("discord-public-key",     "", secret: false);
+        var discordApplicationId = builder.AddParameter("discord-application-id", "", secret: false);
+        var discordClientSecret  = builder.AddParameter("discord-client-secret",  "", secret: true);
 
         // Public base domain used by the bot package to build /connect and OAuth2
         // redirect URLs. Default targets the local Aspire run (https://localhost:1612).
         // Production should set this to e.g. "nocturne.run" via user-secrets.
         var publicBaseDomain = builder.AddParameter("public-base-domain", "localhost:1612");
 
-        // HMAC secret used to sign the Discord OAuth2 state parameter on the apex
-        // callback, so an attacker can't forge callbacks that claim to be from an
-        // arbitrary tenant. Generate with: openssl rand -hex 32
-        var botLinkHmacSecret = builder.AddParameter("bot-link-hmac-secret", secret: true);
-        var telegramBotToken          = builder.AddParameter("telegram-bot-token",          secret: true);
-        var telegramWebhookSecretToken = builder.AddParameter("telegram-webhook-secret-token", secret: true);
-        var slackBotToken             = builder.AddParameter("slack-bot-token",             secret: true);
-        var slackSigningSecret        = builder.AddParameter("slack-signing-secret",        secret: true);
-        var whatsappAccessToken       = builder.AddParameter("whatsapp-access-token",       secret: true);
-        var whatsappVerifyToken       = builder.AddParameter("whatsapp-verify-token",       secret: true);
-        var whatsappAppSecret         = builder.AddParameter("whatsapp-app-secret",         secret: true);
-        var whatsappPhoneNumberId     = builder.AddParameter("whatsapp-phone-number-id",    secret: false);
+        // Chat platform credentials. All optional — a deployment that only
+        // uses Discord shouldn't need to supply Telegram/Slack/WhatsApp
+        // values. Empty-string defaults let AppHost start cleanly; the
+        // individual bot integrations no-op when their credentials are
+        // absent.
+        var telegramBotToken          = builder.AddParameter("telegram-bot-token",          "", secret: true);
+        var telegramWebhookSecretToken = builder.AddParameter("telegram-webhook-secret-token", "", secret: true);
+        var slackBotToken             = builder.AddParameter("slack-bot-token",             "", secret: true);
+        var slackSigningSecret        = builder.AddParameter("slack-signing-secret",        "", secret: true);
+        var whatsappAccessToken       = builder.AddParameter("whatsapp-access-token",       "", secret: true);
+        var whatsappVerifyToken       = builder.AddParameter("whatsapp-verify-token",       "", secret: true);
+        var whatsappAppSecret         = builder.AddParameter("whatsapp-app-secret",         "", secret: true);
+        var whatsappPhoneNumberId     = builder.AddParameter("whatsapp-phone-number-id",    "", secret: false);
 
         // ------------------------------------------------------------------
         // Nocturne API
@@ -129,13 +176,15 @@ class Program
             .WithEnvironment(ServiceNames.ConfigKeys.InstanceKey, instanceKey);
 #pragma warning restore ASPIRECERTIFICATES001
 
-        if (managedDatabase != null)
+        if (managedDatabase != null && postgresServer != null
+            && postgresAppPassword != null && postgresMigratorPassword != null)
         {
-            api.WaitFor(managedDatabase).WithReference(managedDatabase);
+            api.WaitFor(managedDatabase)
+               .WithNocturneDatabase(postgresServer, dbName, postgresAppPassword, postgresMigratorPassword);
         }
-        else if (remoteDatabase != null)
+        else if (remoteAppConnectionString != null && remoteMigratorConnectionString != null)
         {
-            api.WithReference(remoteDatabase);
+            api.WithNocturneRemoteDatabase(remoteAppConnectionString, remoteMigratorConnectionString);
         }
         else
         {
@@ -152,14 +201,25 @@ class Program
         // ------------------------------------------------------------------
         var demoService = builder.AddDemoService<Projects.Nocturne_Services_Demo>(
             api,
-            managedDatabase ?? remoteDatabase,
+            managedDatabase,
             options => options.Port = 1614);
+
+        if (demoService != null)
+        {
+            if (managedDatabase != null && postgresServer != null
+                && postgresAppPassword != null && postgresMigratorPassword != null)
+            {
+                demoService.WithNocturneDatabase(postgresServer, dbName, postgresAppPassword, postgresMigratorPassword);
+            }
+            else if (remoteAppConnectionString != null && remoteMigratorConnectionString != null)
+            {
+                demoService.WithNocturneRemoteDatabase(remoteAppConnectionString, remoteMigratorConnectionString);
+            }
+        }
 
         // ------------------------------------------------------------------
         // Web app (SvelteKit + integrated WebSocket bridge)
         // ------------------------------------------------------------------
-        var solutionRoot = Path.GetFullPath(
-            Path.Combine(builder.AppHostDirectory, "..", "..", ".."));
         var webPackagePath = Path.Combine(solutionRoot, "src", "Web", "packages", "app");
         var webDockerContextPath = Path.Combine(solutionRoot, "src", "Web");
 
@@ -176,7 +236,10 @@ class Program
                 .WithEnvironment("DISCORD_APPLICATION_ID", discordApplicationId)
                 .WithEnvironment("DISCORD_CLIENT_SECRET",  discordClientSecret)
                 .WithEnvironment("PUBLIC_BASE_DOMAIN",     publicBaseDomain)
-                .WithEnvironment("BOT_LINK_HMAC_SECRET",   botLinkHmacSecret)
+                // NOTE: BOT_LINK_HMAC_SECRET is not injected — oauth-state.ts
+                // reuses INSTANCE_KEY (already wired above) to sign the
+                // Discord OAuth2 state parameter. See src/Web/packages/app/
+                // src/lib/server/bot/oauth-state.ts.
                 .WithEnvironment("TELEGRAM_BOT_TOKEN",             telegramBotToken)
                 .WithEnvironment("TELEGRAM_WEBHOOK_SECRET_TOKEN",  telegramWebhookSecretToken)
                 .WithEnvironment("SLACK_BOT_TOKEN",                slackBotToken)

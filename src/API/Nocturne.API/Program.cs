@@ -18,6 +18,7 @@ using Nocturne.Infrastructure.Cache.Extensions;
 using Nocturne.Core.Contracts.Repositories;
 using Nocturne.Infrastructure.Data;
 using Nocturne.Infrastructure.Data.Extensions;
+using Nocturne.Infrastructure.Data.Interceptors;
 using OpenTelemetry.Logs;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -85,14 +86,13 @@ builder.Host.UseDefaultServiceProvider(options =>
 });
 
 // Configure PostgreSQL database
-var aspirePostgreSqlConnection = builder.Configuration.GetConnectionString(ServiceNames.PostgreSql);
-
-if (string.IsNullOrWhiteSpace(aspirePostgreSqlConnection))
-{
-    throw new InvalidOperationException(
-        $"PostgreSQL connection string '{ServiceNames.PostgreSql}' not found. Ensure Aspire is properly configured."
-    );
-}
+// Two connection strings: app role (nocturne-postgres) for runtime, migrator role
+// (nocturne-postgres-migrator) for running migrations at startup. Both are required
+// when migrations run; the migrator string is optional in NSwag/Testing mode.
+var aspirePostgreSqlConnection = builder.Configuration.GetConnectionString(ServiceNames.PostgreSql)
+    ?? throw new InvalidOperationException(
+        $"ConnectionStrings:{ServiceNames.PostgreSql} is required.");
+var migratorConnectionString = builder.Configuration.GetConnectionString($"{ServiceNames.PostgreSql}-migrator");
 
 builder.Services.AddPostgreSqlInfrastructure(
     aspirePostgreSqlConnection,
@@ -351,12 +351,26 @@ app.MapDefaultEndpoints();
 var isNSwagGeneration = IsRunningInNSwagContext();
 if (!isNSwagGeneration && !app.Environment.IsEnvironment("Testing"))
 {
-    // Initialize PostgreSQL database with migrations
-    // IMPORTANT: Do not catch exceptions here - if migrations fail, the app should not start
-    // This ensures the database schema is always in a valid state before handling requests
-    Console.WriteLine("Running PostgreSQL database migrations...");
-    await app.Services.MigrateDatabaseAsync();
-    Console.WriteLine("PostgreSQL database migrations completed successfully.");
+    // Validate that the migrator connection string is present and uses a different role.
+    if (string.IsNullOrWhiteSpace(migratorConnectionString))
+    {
+        throw new InvalidOperationException(
+            $"ConnectionStrings:{ServiceNames.PostgreSql}-migrator is required. " +
+            "See docs/postgres/bootstrap-roles.sql.");
+    }
+
+    DatabaseInitializationExtensions.ValidateRoleSeparation(aspirePostgreSqlConnection, migratorConnectionString);
+
+    // Run migrations under the dedicated migrator role using a throwaway data source.
+    {
+        using var scope = app.Services.CreateScope();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        var interceptor = scope.ServiceProvider.GetRequiredService<TenantConnectionInterceptor>();
+        await DatabaseInitializationExtensions.RunMigrationsAsync(migratorConnectionString, logger, interceptor);
+    }
+
+    // Validate RLS, ownership, default privileges, and NoResetOnClose under the app role.
+    await app.Services.ValidateDatabaseConfigurationAsync();
 
     // Seed default tenant if none exists and backfill tenant_id on existing rows
     await DefaultTenantSeeder.SeedDefaultTenantAsync(app.Services);

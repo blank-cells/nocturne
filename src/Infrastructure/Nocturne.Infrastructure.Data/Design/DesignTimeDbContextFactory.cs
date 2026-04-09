@@ -18,18 +18,34 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<NocturneDb
     {
         var optionsBuilder = new DbContextOptionsBuilder<NocturneDbContext>();
 
-        // Resolve connection string from environment or appsettings.json, with a sensible default
+        // EF CLI operations need DDL privileges, which only nocturne_migrator
+        // has. Prefer the migrator connection string; fall back to the app
+        // string only with a loud warning because EF operations will likely
+        // fail under the runtime role.
         string? connectionString =
-            // Prefer connection strings provided via environment variables
-            Environment.GetEnvironmentVariable("ConnectionStrings__nocturne-postgres")
-            ?? Environment.GetEnvironmentVariable("PostgreSql__ConnectionString")
-            ??
-            // Try load appsettings.json from current working directory
-            TryGetConnectionStringFromConfig(Directory.GetCurrentDirectory(), "nocturne-postgres")
-            ?? TryGetPostgreSqlFromConfig(Directory.GetCurrentDirectory())
-            ??
-            // Fallback to Docker Compose defaults exposed on localhost
-            "Host=localhost;Port=5432;Database=nocturne;Username=nocturne_user;Password=nocturne_password";
+            Environment.GetEnvironmentVariable("ConnectionStrings__nocturne-postgres-migrator")
+            ?? TryGetConnectionStringFromConfig(Directory.GetCurrentDirectory(), "nocturne-postgres-migrator");
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString =
+                Environment.GetEnvironmentVariable("ConnectionStrings__nocturne-postgres")
+                ?? Environment.GetEnvironmentVariable("PostgreSql__ConnectionString")
+                ?? TryGetConnectionStringFromConfig(Directory.GetCurrentDirectory(), "nocturne-postgres")
+                ?? TryGetPostgreSqlFromConfig(Directory.GetCurrentDirectory());
+
+            if (!string.IsNullOrWhiteSpace(connectionString))
+            {
+                Console.Error.WriteLine(
+                    "Warning: ConnectionStrings:nocturne-postgres-migrator not set, falling back to nocturne-postgres. " +
+                    "EF CLI operations may fail if the fallback connection uses the runtime app role which lacks DDL privileges.");
+            }
+        }
+
+        // Fallback to Docker Compose defaults exposed on localhost, using the
+        // migrator role so design-time ops (migrations add/update) can issue DDL.
+        connectionString ??=
+            "Host=localhost;Port=5432;Database=nocturne;Username=nocturne_migrator;Password=dev-migrator-password-change-me";
 
         optionsBuilder.UseNpgsql(connectionString);
 

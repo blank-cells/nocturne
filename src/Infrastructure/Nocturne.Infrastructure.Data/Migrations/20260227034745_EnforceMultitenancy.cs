@@ -74,23 +74,26 @@ namespace Nocturne.Infrastructure.Data.Migrations
             {
                 migrationBuilder.Sql($"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;");
                 migrationBuilder.Sql($"ALTER TABLE {table} FORCE ROW LEVEL SECURITY;");
+                // Use missing_ok := true + NULLIF so the policy expression is
+                // safe to evaluate when the GUC is unset (e.g. during EF
+                // migrations running under the migrator role). An unset GUC
+                // collapses to NULL, tenant_id = NULL is NULL, the row is
+                // excluded — which is the correct "cannot see anything
+                // without setting tenant context" semantics.
                 migrationBuilder.Sql(
                     $"""
                     CREATE POLICY tenant_isolation ON {table}
-                        USING (tenant_id = current_setting('app.current_tenant_id')::uuid);
+                        USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
                     """);
             }
 
-            // Step 3: Create the nocturne_app role used by the application
-            migrationBuilder.Sql(
-                """
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'nocturne_app') THEN
-                        CREATE ROLE nocturne_app LOGIN;
-                    END IF;
-                END $$;
-                """);
+            // Role creation (nocturne_app, nocturne_migrator) used to live
+            // here but was moved to the Postgres container init script
+            // (docs/postgres/container-init/00-init.sh and the BYO
+            // bootstrap-roles.sql). Migrations run as nocturne_migrator,
+            // which has NOCREATEROLE — it cannot create or alter roles.
+            // The init script runs before any migration, so both roles
+            // already exist by the time this migration executes.
         }
 
         /// <inheritdoc />
