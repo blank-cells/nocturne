@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Nocturne.API.Multitenancy;
+using Nocturne.API.Services.Auth;
 using Nocturne.Connectors.Core.Utilities;
 using Nocturne.Core.Contracts.Multitenancy;
 using Nocturne.Core.Models.Authorization;
@@ -340,7 +341,8 @@ public partial class TenantService : ITenantService
 
     public async Task<ProvisionResult> ProvisionWithOwnerAsync(
         string slug, string displayName, string ownerUsername, string ownerEmail,
-        ProvisionCredentialData credential, CancellationToken ct = default)
+        ProvisionCredentialData? credential, ProvisionOidcIdentityData? oidcIdentity,
+        CancellationToken ct = default)
     {
         await using var context = await _factory.CreateDbContextAsync(ct);
         var strategy = context.Database.CreateExecutionStrategy();
@@ -418,12 +420,13 @@ public partial class TenantService : ITenantService
                 await SeedKnownOAuthClientsAsync(context, tenant.Id, ct);
 
                 // 2. Find or create subject by email
+                var subjectId = credential?.SubjectId ?? oidcIdentity?.SubjectId ?? Guid.CreateVersion7();
                 var subject = await context.Subjects.FirstOrDefaultAsync(s => s.Email == ownerEmail, ct);
                 if (subject == null)
                 {
                     subject = new SubjectEntity
                     {
-                        Id = credential.SubjectId ?? Guid.CreateVersion7(),
+                        Id = subjectId,
                         Name = ownerUsername,
                         Username = ownerUsername.ToLowerInvariant(),
                         Email = ownerEmail,
@@ -434,17 +437,55 @@ public partial class TenantService : ITenantService
                     await context.SaveChangesAsync(ct);
                 }
 
-                // 3. Create passkey credential
-                context.PasskeyCredentials.Add(new PasskeyCredentialEntity
+                // 3. Create credential (passkey or OIDC identity)
+                if (credential is not null)
                 {
-                    Id = Guid.CreateVersion7(),
-                    SubjectId = subject.Id,
-                    CredentialId = Convert.FromBase64String(credential.CredentialId),
-                    PublicKey = Convert.FromBase64String(credential.PublicKey),
-                    SignCount = credential.SignCount,
-                    Transports = credential.Transports,
-                    AaGuid = credential.AaGuid,
-                });
+                    context.PasskeyCredentials.Add(new PasskeyCredentialEntity
+                    {
+                        Id = Guid.CreateVersion7(),
+                        SubjectId = subject.Id,
+                        CredentialId = Convert.FromBase64String(credential.CredentialId),
+                        PublicKey = Convert.FromBase64String(credential.PublicKey),
+                        SignCount = credential.SignCount,
+                        Transports = credential.Transports,
+                        AaGuid = credential.AaGuid,
+                    });
+                }
+                else if (oidcIdentity is not null)
+                {
+                    // Normalize issuer URL to match OidcProviderService storage format
+                    var normalizedIssuer = oidcIdentity.Issuer.TrimEnd('/');
+
+                    // Ensure the OIDC provider row exists (config-managed providers
+                    // use deterministic GUIDs but may not have DB rows yet).
+                    var provider = await context.OidcProviders
+                        .FirstOrDefaultAsync(p => p.IssuerUrl == normalizedIssuer, ct);
+
+                    if (provider == null)
+                    {
+                        provider = new OidcProviderEntity
+                        {
+                            Id = OidcProviderService.CreateDeterministicGuid(normalizedIssuer),
+                            Name = oidcIdentity.Provider,
+                            IssuerUrl = normalizedIssuer,
+                            ClientId = string.Empty, // Populated by config on next startup
+                            IsEnabled = true,
+                        };
+                        context.OidcProviders.Add(provider);
+                        await context.SaveChangesAsync(ct);
+                    }
+
+                    context.SubjectOidcIdentities.Add(new SubjectOidcIdentityEntity
+                    {
+                        Id = Guid.CreateVersion7(),
+                        SubjectId = subject.Id,
+                        ProviderId = provider.Id,
+                        OidcSubjectId = oidcIdentity.OidcSubjectId,
+                        Issuer = normalizedIssuer,
+                        Email = oidcIdentity.Email,
+                        LinkedAt = DateTime.UtcNow,
+                    });
+                }
                 await context.SaveChangesAsync(ct);
 
                 // 4. Add subject as tenant owner (inline to share transaction context)
@@ -506,6 +547,7 @@ public partial class TenantService : ITenantService
             _logger.LogWarning("Public system subject not found — skipping public access membership for tenant {TenantId}", tenantId);
         }
     }
+
 
     private static string GenerateApiSecret()
     {

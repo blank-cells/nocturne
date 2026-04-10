@@ -178,15 +178,22 @@ public class TenantController : ControllerBase
     [HttpPost("provision")]
     [RemoteCommand(Invalidates = ["GetAll"])]
     [ProducesResponseType(typeof(ProvisionResult), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Provision(
         [FromBody] ProvisionRequest request, CancellationToken ct)
     {
+        if (request.Credential is null && request.OidcIdentity is null)
+            return BadRequest(new { error = "Either Credential or OidcIdentity must be provided" });
+        if (request.Credential is not null && request.OidcIdentity is not null)
+            return BadRequest(new { error = "Provide either Credential or OidcIdentity, not both" });
+
         var result = await _tenantService.ProvisionWithOwnerAsync(
             request.Slug,
             request.DisplayName,
             request.OwnerUsername,
             request.OwnerEmail,
             request.Credential,
+            request.OidcIdentity,
             ct);
 
         return StatusCode(StatusCodes.Status201Created, result);
@@ -221,7 +228,8 @@ public record ProvisionRequest(
     string DisplayName,
     string OwnerUsername,
     string OwnerEmail,
-    ProvisionCredentialData Credential);
+    ProvisionCredentialData? Credential = null,
+    ProvisionOidcIdentityData? OidcIdentity = null);
 
 public class CreateMemberInviteRequest
 {

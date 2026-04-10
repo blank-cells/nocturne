@@ -373,7 +373,7 @@ public class OidcProviderService : IOidcProviderService
     /// Creates a deterministic GUID from an input string using SHA-1.
     /// Used for config-defined providers so IDs survive app restarts.
     /// </summary>
-    private static Guid CreateDeterministicGuid(string input)
+    public static Guid CreateDeterministicGuid(string input)
     {
         var hash = SHA1.HashData(Encoding.UTF8.GetBytes("nocturne-oidc-provider:" + input));
         var bytes = hash[..16];

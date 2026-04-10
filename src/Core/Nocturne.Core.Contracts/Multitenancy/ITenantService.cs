@@ -17,7 +17,8 @@ public interface ITenantService
     Task<bool> HasApiSecretAsync(Guid tenantId, CancellationToken ct = default);
     Task<ProvisionResult> ProvisionWithOwnerAsync(
         string slug, string displayName, string ownerUsername, string ownerEmail,
-        ProvisionCredentialData credential, CancellationToken ct = default);
+        ProvisionCredentialData? credential, ProvisionOidcIdentityData? oidcIdentity,
+        CancellationToken ct = default);
 }
 
 public record TenantDto(Guid Id, string Slug, string DisplayName, bool IsActive, bool IsDefault, DateTime SysCreatedAt);
@@ -47,6 +48,13 @@ public record ProvisionCredentialData(
     uint SignCount,
     List<string> Transports,
     Guid? AaGuid,
+    Guid? SubjectId);
+
+public record ProvisionOidcIdentityData(
+    string Provider,
+    string OidcSubjectId,
+    string Issuer,
+    string Email,
     Guid? SubjectId);
 
 public record ProvisionResult(Guid TenantId, Guid SubjectId, string Slug);
