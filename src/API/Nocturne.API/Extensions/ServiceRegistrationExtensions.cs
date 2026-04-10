@@ -148,6 +148,7 @@ public static class ServiceRegistrationExtensions
 
         // OAuth services
         services.AddScoped<IOAuthClientService, OAuthClientService>();
+        services.AddSingleton<RedirectUriValidator>();
         services.AddScoped<IOAuthGrantService, OAuthGrantService>();
         services.AddScoped<IOAuthTokenService, OAuthTokenService>();
         services.AddScoped<IOAuthDeviceCodeService, OAuthDeviceCodeService>();
@@ -231,6 +232,21 @@ public static class ServiceRegistrationExtensions
                         {
                             PermitLimit = 10,
                             Window = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                        }
+                    )
+            );
+
+            // RFC 7591 Dynamic Client Registration: 10 registrations per IP per hour.
+            options.AddPolicy(
+                "oauth-register",
+                context =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromHours(1),
                             QueueLimit = 0,
                         }
                     )

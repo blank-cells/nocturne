@@ -3,9 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Nocturne.API.Extensions;
+using Nocturne.API.Models.OAuth;
+using Nocturne.API.Services.Auth;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models.Authorization;
-using Nocturne.API.Models.OAuth;
 
 namespace Nocturne.API.Controllers;
 
@@ -817,6 +818,92 @@ public class OAuthController : ControllerBase
 
         // Non-JWT tokens (e.g. refresh tokens) are not introspectable in this implementation.
         return Ok(new TokenIntrospectionResponse { Active = false });
+    }
+
+    /// <summary>
+    /// RFC 7591 Dynamic Client Registration. Allows third-party native apps
+    /// (Trio, xDrip+, Loop, AAPS) to obtain a tenant-scoped client_id without
+    /// any out-of-band registration step. Idempotent on (tenant, software_id):
+    /// re-registering with the same software_id returns the existing client_id.
+    /// </summary>
+    [HttpPost("register")]
+    [AllowAnonymous]
+    [EnableRateLimiting("oauth-register")]
+    [ProducesResponseType(typeof(ClientRegistrationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OAuthError), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Register(
+        [FromBody] ClientRegistrationRequest request,
+        [FromServices] RedirectUriValidator redirectUriValidator,
+        CancellationToken ct)
+    {
+        if (request is null)
+        {
+            return BadRequest(new OAuthError
+            {
+                Error = "invalid_client_metadata",
+                ErrorDescription = "Request body is required.",
+            });
+        }
+
+        // RFC 7591 Section 2.0.1: redirect_uris is REQUIRED for native apps
+        if (request.RedirectUris is null || request.RedirectUris.Count == 0)
+        {
+            return BadRequest(new OAuthError
+            {
+                Error = "invalid_redirect_uri",
+                ErrorDescription = "At least one redirect_uri is required.",
+            });
+        }
+
+        // Validate every redirect URI per RFC 8252
+        var invalidUris = request.RedirectUris
+            .Where(u => !redirectUriValidator.IsValidForRegistration(u))
+            .ToList();
+        if (invalidUris.Count > 0)
+        {
+            return BadRequest(new OAuthError
+            {
+                Error = "invalid_redirect_uri",
+                ErrorDescription =
+                    $"The following redirect_uris are not allowed: {string.Join(", ", invalidUris)}.",
+            });
+        }
+
+        // Strict scope validation against the canonical registry
+        var unknownScopes = RegistrationScopeValidator.ValidateScopes(request.Scope);
+        if (unknownScopes is not null)
+        {
+            return BadRequest(new OAuthError
+            {
+                Error = "invalid_client_metadata",
+                ErrorDescription =
+                    $"Unknown scopes: {string.Join(", ", unknownScopes)}.",
+            });
+        }
+
+        var createdFromIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+        var client = await _clientService.RegisterClientAsync(
+            request.SoftwareId,
+            request.ClientName,
+            request.ClientUri,
+            request.LogoUri,
+            request.RedirectUris,
+            request.Scope,
+            createdFromIp,
+            ct);
+
+        var response = new ClientRegistrationResponse
+        {
+            ClientId = client.ClientId,
+            ClientIdIssuedAt = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds(),
+            ClientName = client.DisplayName,
+            RedirectUris = client.RedirectUris,
+            Scope = request.Scope,
+            SoftwareId = client.SoftwareId,
+        };
+
+        return Ok(response);
     }
 
     private static OAuthGrantDto MapToDto(OAuthGrantInfo info) => new()

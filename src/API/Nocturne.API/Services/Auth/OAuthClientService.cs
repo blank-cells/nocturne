@@ -169,6 +169,64 @@ public class OAuthClientService : IOAuthClientService
         }
     }
 
+    /// <inheritdoc />
+    public async Task<OAuthClientInfo> RegisterClientAsync(
+        string? softwareId,
+        string? clientName,
+        string? clientUri,
+        string? logoUri,
+        IReadOnlyList<string> redirectUris,
+        string? scope,
+        string? createdFromIp,
+        CancellationToken ct = default)
+    {
+        // Idempotent on (tenant, software_id) when software_id is supplied:
+        // if a row already exists return it unchanged.
+        if (!string.IsNullOrEmpty(softwareId))
+        {
+            var existing = await _dbContext.OAuthClients
+                .FirstOrDefaultAsync(c => c.SoftwareId == softwareId, ct);
+            if (existing != null)
+            {
+                _logger.LogDebug(
+                    "DCR: returning existing client for software_id {SoftwareId} (tenant {TenantId})",
+                    softwareId, existing.TenantId);
+                return MapToInfo(existing);
+            }
+        }
+
+        // Look up the known directory entry to mark is_known and pull display defaults.
+        var known = string.IsNullOrEmpty(softwareId)
+            ? null
+            : KnownOAuthClients.MatchBySoftwareId(softwareId);
+
+        var entity = new OAuthClientEntity
+        {
+            Id = Guid.CreateVersion7(),
+            // client_id is opaque to clients; use the entity Id as a stable string.
+            ClientId = Guid.CreateVersion7().ToString(),
+            SoftwareId = softwareId,
+            ClientName = clientName ?? known?.DisplayName,
+            ClientUri = clientUri ?? known?.Homepage,
+            LogoUri = logoUri ?? known?.LogoUri,
+            DisplayName = clientName ?? known?.DisplayName,
+            IsKnown = known != null,
+            RedirectUris = JsonSerializer.Serialize(redirectUris),
+            CreatedFromIp = createdFromIp,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        _dbContext.OAuthClients.Add(entity);
+        await _dbContext.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "DCR: registered client {ClientId} software_id={SoftwareId} known={IsKnown}",
+            entity.ClientId, softwareId ?? "(none)", entity.IsKnown);
+
+        return MapToInfo(entity);
+    }
+
     /// <summary>
     /// Map an OAuthClientEntity to an OAuthClientInfo DTO.
     /// </summary>

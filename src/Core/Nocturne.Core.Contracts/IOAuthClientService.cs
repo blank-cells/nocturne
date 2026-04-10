@@ -25,6 +25,31 @@ public interface IOAuthClientService
         string redirectUri,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// RFC 7591 Dynamic Client Registration. If the request specifies a known
+    /// software_id and a row already exists for the (tenant, software_id) pair,
+    /// returns that existing row (idempotent). Otherwise inserts a new row with
+    /// a freshly issued client_id.
+    /// </summary>
+    /// <param name="softwareId">RFC 7591 software_id (reverse-DNS), or null</param>
+    /// <param name="clientName">Display name for the consent screen</param>
+    /// <param name="clientUri">Homepage URI</param>
+    /// <param name="logoUri">Logo URI for the consent screen</param>
+    /// <param name="redirectUris">Allowed redirect URIs (already validated)</param>
+    /// <param name="scope">Space-delimited scope string</param>
+    /// <param name="createdFromIp">IP that performed the registration</param>
+    /// <param name="ct">Cancellation token</param>
+    Task<OAuthClientInfo> RegisterClientAsync(
+        string? softwareId,
+        string? clientName,
+        string? clientUri,
+        string? logoUri,
+        IReadOnlyList<string> redirectUris,
+        string? scope,
+        string? createdFromIp,
+        CancellationToken ct = default
+    );
 }
 
 /// <summary>
