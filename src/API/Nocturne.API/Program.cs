@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
 using Nocturne.API.Authorization;
@@ -227,6 +228,16 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                             | ForwardedHeaders.XForwardedProto
+                             | ForwardedHeaders.XForwardedHost;
+    // Trust any proxy — the API is only reachable through the gateway.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
 // Configure middleware pipeline
@@ -234,6 +245,7 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseResponseCaching();
 app.UseCors();
+app.UseForwardedHeaders();
 
 // Explicit UseRouting so TenantSetupMiddleware and RecoveryModeMiddleware can
 // read endpoint metadata (e.g. [AllowDuringSetup]). Minimal hosting would
