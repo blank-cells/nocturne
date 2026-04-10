@@ -1,8 +1,6 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Nocturne.API.Tests.Infrastructure;
 using Xunit;
 
@@ -22,7 +20,6 @@ namespace Nocturne.API.Tests.Controllers.V1;
 [Trait("Category", "Unit")]
 public class V1AuthenticationRegressionTests : IClassFixture<AuthenticationTestFactory>, IDisposable
 {
-    private const string TestApiSecret = "test-api-secret-for-v1-regression";
     private readonly AuthenticationTestFactory _factory;
     private readonly HttpClient _anonymousClient;
     private readonly HttpClient _authenticatedClient;
@@ -32,41 +29,12 @@ public class V1AuthenticationRegressionTests : IClassFixture<AuthenticationTestF
         _factory = factory;
 
         // Client with no authentication (anonymous)
-        _anonymousClient = _factory
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureAppConfiguration((_, config) =>
-                {
-                    config.Sources.Insert(0,
-                        new Microsoft.Extensions.Configuration.Memory.MemoryConfigurationSource
-                        {
-                            InitialData = new[]
-                            {
-                                new KeyValuePair<string, string?>("INSTANCE_KEY", TestApiSecret),
-                            },
-                        });
-                });
-            })
-            .CreateClient();
+        _anonymousClient = _factory.CreateClient();
 
-        // Client with valid api-secret authentication
-        _authenticatedClient = _factory
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureAppConfiguration((_, config) =>
-                {
-                    config.Sources.Insert(0,
-                        new Microsoft.Extensions.Configuration.Memory.MemoryConfigurationSource
-                        {
-                            InitialData = new[]
-                            {
-                                new KeyValuePair<string, string?>("INSTANCE_KEY", TestApiSecret),
-                            },
-                        });
-                });
-            })
-            .CreateClient();
-        _authenticatedClient.DefaultRequestHeaders.Add("api-secret", ComputeSha1Hash(TestApiSecret));
+        // Client with valid api-secret authentication (uses the factory's configured secret)
+        _authenticatedClient = _factory.CreateClient();
+        _authenticatedClient.DefaultRequestHeaders.Add("api-secret",
+            ComputeSha1Hash(AuthenticationTestFactory.ApiSecret));
     }
 
     public void Dispose()
@@ -278,22 +246,7 @@ public class V1AuthenticationRegressionTests : IClassFixture<AuthenticationTestF
     public async Task V1_PostWithWrongApiSecret_ShouldBeRejected()
     {
         // Arrange
-        var client = _factory
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureAppConfiguration((_, config) =>
-                {
-                    config.Sources.Insert(0,
-                        new Microsoft.Extensions.Configuration.Memory.MemoryConfigurationSource
-                        {
-                            InitialData = new[]
-                            {
-                                new KeyValuePair<string, string?>("INSTANCE_KEY", TestApiSecret),
-                            },
-                        });
-                });
-            })
-            .CreateClient();
+        var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("api-secret", ComputeSha1Hash("wrong-secret"));
 
         var content = new StringContent("{}", Encoding.UTF8, "application/json");

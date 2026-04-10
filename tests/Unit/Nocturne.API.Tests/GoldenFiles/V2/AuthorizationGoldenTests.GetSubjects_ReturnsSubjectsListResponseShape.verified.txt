@@ -1,5 +1,18 @@
 ﻿{
-  StatusCode: 401,
-  ContentType: application/problem+json; charset=utf-8,
-  Body: {"type":"https://tools.ietf.org/html/rfc9110#section-15.5.2","title":"Unauthorized","status":401,"traceId": "{scrubbed}"}
+  StatusCode: 200,
+  ContentType: application/json; charset=utf-8,
+  Body: [
+    {
+      name: Public,
+      accessToken: ,
+      created: {Scrubbed},
+      modified: {Scrubbed}
+    },
+    {
+      name: Test User,
+      accessToken: ,
+      created: {Scrubbed},
+      modified: {Scrubbed}
+    }
+  ]
 }

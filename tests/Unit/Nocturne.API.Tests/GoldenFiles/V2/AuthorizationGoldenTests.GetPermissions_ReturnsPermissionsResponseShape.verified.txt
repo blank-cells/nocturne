@@ -1,5 +1,208 @@
 ﻿{
-  StatusCode: 500,
-  ContentType: application/problem+json; charset=utf-8,
-  Body: {"type":"https://tools.ietf.org/html/rfc9110#section-15.6.1","title":"An error occurred while processing your request.","status":500,"traceId": "{scrubbed}"}
+  StatusCode: 200,
+  ContentType: application/json; charset=utf-8,
+  Body: {
+    permissions: [
+      {
+        name: *,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: admin,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:*,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:*:admin,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:*:create,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:*:delete,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:*:read,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:*:update,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:activity:*,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:activity:create,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:activity:delete,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:activity:read,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:activity:update,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:devicestatus:*,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:devicestatus:create,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:devicestatus:delete,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:devicestatus:read,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:devicestatus:update,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:entries:*,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:entries:create,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:entries:delete,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:entries:read,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:entries:update,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:food:*,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:food:create,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:food:delete,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:food:read,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:food:update,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:profile:*,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:profile:create,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:profile:delete,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:profile:read,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:profile:update,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:treatments:*,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:treatments:create,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:treatments:delete,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:treatments:read,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: api:treatments:update,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: denied,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      },
+      {
+        name: readable,
+        firstSeen: {Scrubbed},
+        lastSeen: {Scrubbed}
+      }
+    ]
+  }
 }

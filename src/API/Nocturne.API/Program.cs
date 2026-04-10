@@ -90,9 +90,10 @@ builder.Host.UseDefaultServiceProvider(options =>
 // Two connection strings: app role (nocturne-postgres) for runtime, migrator role
 // (nocturne-postgres-migrator) for running migrations at startup. Both are required
 // when migrations run; the migrator string is optional in NSwag/Testing mode.
+var isTesting = builder.Environment.IsEnvironment("Testing");
 var aspirePostgreSqlConnection = builder.Configuration.GetConnectionString(ServiceNames.PostgreSql)
-    ?? throw new InvalidOperationException(
-        $"ConnectionStrings:{ServiceNames.PostgreSql} is required.");
+    ?? (isTesting ? "Data Source=:memory:" : throw new InvalidOperationException(
+        $"ConnectionStrings:{ServiceNames.PostgreSql} is required."));
 var migratorConnectionString = builder.Configuration.GetConnectionString($"{ServiceNames.PostgreSql}-migrator");
 
 builder.Services.AddPostgreSqlInfrastructure(
@@ -182,7 +183,7 @@ builder.Services.AddMigrationServices();
 var secretKey =
     builder.Configuration[$"Parameters:{ServiceNames.Parameters.InstanceKey}"]
     ?? builder.Configuration[ServiceNames.ConfigKeys.InstanceKey]
-    ?? throw new InvalidOperationException("Instance key must be configured for JWT signing. Set Parameters:instance-key or INSTANCE_KEY.");
+    ?? (isTesting ? "test-instance-key-for-unit-tests-minimum-length" : throw new InvalidOperationException("Instance key must be configured for JWT signing. Set Parameters:instance-key or INSTANCE_KEY."));
 var key = Encoding.UTF8.GetBytes(secretKey);
 
 builder

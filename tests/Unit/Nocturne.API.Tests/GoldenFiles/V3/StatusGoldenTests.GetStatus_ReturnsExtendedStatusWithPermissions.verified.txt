@@ -152,7 +152,16 @@
       ]
     },
     extended: {
-      authorization: {},
+      authorization: {
+        isAuthorized: true,
+        scope: [
+          *
+        ],
+        subject: Guid_1,
+        roles: [
+          admin
+        ]
+      },
       permissions: {
         entries:read: true,
         entries:write: false,
@@ -168,7 +177,6 @@
         settings:write: false,
         admin: false
       },
-      uptimeMs: {Scrubbed},
       collections: [
         entries,
         treatments,

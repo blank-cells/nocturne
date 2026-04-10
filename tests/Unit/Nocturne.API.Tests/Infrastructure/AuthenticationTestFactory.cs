@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -6,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Nocturne.Core.Contracts;
@@ -20,6 +23,17 @@ namespace Nocturne.API.Tests.Infrastructure;
 /// </summary>
 public class AuthenticationTestFactory : WebApplicationFactory<Nocturne.API.Program>
 {
+    /// <summary>
+    /// The API secret configured for the test tenant. Tests that validate API secret
+    /// authentication should send SHA1(ApiSecret) in the api-secret header.
+    /// </summary>
+    public const string ApiSecret = "test-api-secret-for-authentication-tests";
+
+    // Force minimal hosting path — without this override, WebApplicationFactory discovers
+    // the global Program.CreateHostBuilder (used by NSwag) and uses NSwagStartup instead
+    // of the real Program.cs pipeline, resulting in zero mapped endpoints.
+    protected override IHostBuilder? CreateHostBuilder() => null;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration(
@@ -93,19 +107,8 @@ public class AuthenticationTestFactory : WebApplicationFactory<Nocturne.API.Prog
             var db = scope.ServiceProvider.GetRequiredService<NocturneDbContext>();
             db.Database.EnsureCreated();
 
-            // Seed a default tenant so tenant resolution middleware doesn't return 404
-            if (!db.Tenants.Any())
-            {
-                db.Tenants.Add(new Nocturne.Infrastructure.Data.Entities.TenantEntity
-                {
-                    Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                    Slug = "default",
-                    DisplayName = "Default",
-                    IsActive = true,
-                    IsDefault = true,
-                });
-                db.SaveChanges();
-            }
+            // Seed all entities required by the middleware pipeline
+            TestDatabaseSeeder.Seed(db, apiSecretHash: TestDatabaseSeeder.Sha1Hex(ApiSecret));
 
             // Register IDbContextFactory that returns SQLite-backed contexts
             var mockDbContextFactory = new Mock<IDbContextFactory<NocturneDbContext>>();
@@ -204,4 +207,5 @@ public class AuthenticationTestFactory : WebApplicationFactory<Nocturne.API.Prog
             services.Remove(service);
         }
     }
+
 }

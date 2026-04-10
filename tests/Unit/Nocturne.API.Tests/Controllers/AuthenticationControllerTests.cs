@@ -40,34 +40,10 @@ public class AuthenticationControllerTests : IClassFixture<AuthenticationTestFac
     [Fact]
     public async Task VerifyAuth_ValidApiSecret_ReturnsOkResponse()
     {
-        // Arrange
-        var apiSecret = "test-api-secret";
-        var hash = ComputeSha1Hash(apiSecret);
+        // Arrange — send SHA1 of the factory's configured API secret
+        var hash = ComputeSha1Hash(AuthenticationTestFactory.ApiSecret);
 
-        // Create a new factory with the API secret configured
-        var factory = new AuthenticationTestFactory();
-        var client = factory
-            .WithWebHostBuilder(builder =>
-            {
-                builder.ConfigureAppConfiguration(
-                    (context, config) =>
-                    {
-                        // Add the API secret configuration before other configurations
-                        config.Sources.Insert(
-                            0,
-                            new Microsoft.Extensions.Configuration.Memory.MemoryConfigurationSource
-                            {
-                                InitialData = new[]
-                                {
-                                    new KeyValuePair<string, string?>("INSTANCE_KEY", apiSecret),
-                                },
-                            }
-                        );
-                    }
-                );
-            })
-            .CreateClient();
-
+        var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("api-secret", hash);
 
         // Act

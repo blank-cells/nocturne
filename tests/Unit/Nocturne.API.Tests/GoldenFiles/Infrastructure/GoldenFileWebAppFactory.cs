@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -27,6 +28,10 @@ namespace Nocturne.API.Tests.GoldenFiles.Infrastructure;
 /// </summary>
 public class GoldenFileWebAppFactory : WebApplicationFactory<Program>
 {
+    // Force minimal hosting path — without this override, WebApplicationFactory discovers
+    // the global Program.CreateHostBuilder (used by NSwag) and uses NSwagStartup instead
+    // of the real Program.cs pipeline, resulting in zero mapped endpoints.
+    protected override IHostBuilder? CreateHostBuilder() => null;
     private SqliteConnection? _connection;
 
     public SqliteConnection Connection => _connection
@@ -91,23 +96,12 @@ public class GoldenFileWebAppFactory : WebApplicationFactory<Program>
                 return context;
             });
 
-            // Create schema and seed default tenant
+            // Create schema and seed all entities required by the middleware pipeline
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<NocturneDbContext>();
             db.Database.EnsureCreated();
-            if (!db.Tenants.Any())
-            {
-                db.Tenants.Add(new Nocturne.Infrastructure.Data.Entities.TenantEntity
-                {
-                    Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                    Slug = "default",
-                    DisplayName = "Default",
-                    IsActive = true,
-                    IsDefault = true,
-                });
-                db.SaveChanges();
-            }
+            Nocturne.API.Tests.Infrastructure.TestDatabaseSeeder.Seed(db);
 
             // Mock cache service — use DefaultValue.Empty so that GetAsync<T>()
             // returns a completed Task<T?> with default(T) for any T, not just object.
