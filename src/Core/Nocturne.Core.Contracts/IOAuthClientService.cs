@@ -6,10 +6,11 @@ namespace Nocturne.Core.Contracts;
 public interface IOAuthClientService
 {
     /// <summary>
-    /// Find or create a client record for the given client_id.
-    /// If the client_id matches a known app, metadata is populated from the directory.
+    /// Look up a client by its (tenant-scoped) client_id. Returns null if not
+    /// found. Clients must be registered via DCR before calling this — there is
+    /// no auto-create path.
     /// </summary>
-    Task<OAuthClientInfo> FindOrCreateClientAsync(string clientId, CancellationToken ct = default);
+    Task<OAuthClientInfo?> GetClientAsync(string clientId, CancellationToken ct = default);
 
     /// <summary>
     /// Get client info by internal ID.
@@ -40,6 +41,14 @@ public interface IOAuthClientService
     /// <param name="scope">Space-delimited scope string</param>
     /// <param name="createdFromIp">IP that performed the registration</param>
     /// <param name="ct">Cancellation token</param>
+    /// <summary>
+    /// Seed the bundled known-app directory into a tenant's oauth_clients.
+    /// Called during tenant provisioning so well-known apps (Trio, xDrip+, etc.)
+    /// have pre-verified client rows with is_known=true. Idempotent: existing
+    /// rows for the same software_id are left untouched.
+    /// </summary>
+    Task SeedKnownOAuthClientsAsync(Guid tenantId, CancellationToken ct = default);
+
     Task<OAuthClientInfo> RegisterClientAsync(
         string? softwareId,
         string? clientName,

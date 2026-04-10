@@ -56,7 +56,7 @@ public class OAuthGrantServiceTests : IDisposable
 
     private void SetupDefaultMocks()
     {
-        _mockClientService.Setup(c => c.FindOrCreateClientAsync(
+        _mockClientService.Setup(c => c.GetClientAsync(
                 TestClientId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OAuthClientInfo
             {

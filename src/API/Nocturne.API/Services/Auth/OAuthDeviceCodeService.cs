@@ -154,15 +154,15 @@ public class OAuthDeviceCodeService : IOAuthDeviceCodeService
         );
 
         // Look up client display name
-        var client = await _clientService.FindOrCreateClientAsync(entity.ClientId, ct);
+        var client = await _clientService.GetClientAsync(entity.ClientId, ct);
 
         return new DeviceCodeInfo
         {
             Id = entity.Id,
             UserCode = entity.UserCode,
             ClientId = entity.ClientId,
-            ClientDisplayName = client.DisplayName,
-            IsKnownClient = client.IsKnown,
+            ClientDisplayName = client?.DisplayName,
+            IsKnownClient = client?.IsKnown ?? false,
             Scopes = entity.Scopes,
             IsExpired = entity.IsExpired,
             IsApproved = entity.IsApproved,
@@ -218,7 +218,14 @@ public class OAuthDeviceCodeService : IOAuthDeviceCodeService
         }
 
         // Find the client entity so we can create a grant against the internal ID
-        var client = await _clientService.FindOrCreateClientAsync(entity.ClientId, ct);
+        var client = await _clientService.GetClientAsync(entity.ClientId, ct);
+        if (client == null)
+        {
+            _logger.LogWarning(
+                "Cannot approve device code {UserCode}: client {ClientId} no longer registered",
+                normalized, entity.ClientId);
+            return false;
+        }
 
         // Create a grant linking the user to the client with the requested scopes
         var grant = await _grantService.CreateOrUpdateGrantAsync(

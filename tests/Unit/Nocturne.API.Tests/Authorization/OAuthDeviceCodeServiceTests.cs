@@ -69,7 +69,7 @@ public class OAuthDeviceCodeServiceTests : IDisposable
         _mockJwtService.Setup(j => j.HashRefreshToken(TestDeviceCode))
             .Returns(TestDeviceCodeHash);
 
-        _mockClientService.Setup(c => c.FindOrCreateClientAsync(
+        _mockClientService.Setup(c => c.GetClientAsync(
                 TestClientId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OAuthClientInfo
             {

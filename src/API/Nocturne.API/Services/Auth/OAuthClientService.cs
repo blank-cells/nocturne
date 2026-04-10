@@ -13,6 +13,7 @@ namespace Nocturne.API.Services.Auth;
 public class OAuthClientService : IOAuthClientService
 {
     private readonly NocturneDbContext _dbContext;
+    private readonly RedirectUriValidator _redirectUriValidator;
     private readonly ILogger<OAuthClientService> _logger;
 
     /// <summary>
@@ -20,41 +21,25 @@ public class OAuthClientService : IOAuthClientService
     /// </summary>
     public OAuthClientService(
         NocturneDbContext dbContext,
+        RedirectUriValidator redirectUriValidator,
         ILogger<OAuthClientService> logger)
     {
         _dbContext = dbContext;
+        _redirectUriValidator = redirectUriValidator;
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public async Task<OAuthClientInfo> FindOrCreateClientAsync(string clientId, CancellationToken ct = default)
+    public async Task<OAuthClientInfo?> GetClientAsync(string clientId, CancellationToken ct = default)
     {
         var entity = await _dbContext.OAuthClients
-            .FirstOrDefaultAsync(c => c.ClientId.ToLower() == clientId.ToLower(), ct);
+            .FirstOrDefaultAsync(c => c.ClientId == clientId, ct);
 
-        if (entity != null)
+        if (entity == null)
         {
-            _logger.LogDebug("Found existing OAuth client {ClientId}", clientId);
-            return MapToInfo(entity);
+            _logger.LogDebug("OAuth client not found: {ClientId}", clientId);
+            return null;
         }
-
-        entity = new OAuthClientEntity
-        {
-            Id = Guid.CreateVersion7(),
-            ClientId = clientId,
-            DisplayName = null,
-            IsKnown = false,
-            RedirectUris = "[]",
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        _dbContext.OAuthClients.Add(entity);
-        await _dbContext.SaveChangesAsync(ct);
-
-        _logger.LogInformation(
-            "Created new OAuth client {ClientId} (known: {IsKnown})",
-            clientId, entity.IsKnown);
 
         return MapToInfo(entity);
     }
@@ -82,73 +67,27 @@ public class OAuthClientService : IOAuthClientService
         CancellationToken ct = default)
     {
         var entity = await _dbContext.OAuthClients
-            .FirstOrDefaultAsync(c => c.ClientId.ToLower() == clientId.ToLower(), ct);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ClientId == clientId, ct);
 
-        // If client not found, it will be created during the authorize flow
         if (entity == null)
         {
-            _logger.LogDebug(
-                "OAuth client {ClientId} not found during redirect URI validation; will be created during authorize",
-                clientId);
-            return true;
-        }
-
-        var uris = DeserializeRedirectUris(entity.RedirectUris);
-
-        // If no redirect URIs are registered, accept any HTTPS URI (or localhost) and pin it
-        if (uris.Count == 0)
-        {
-            if (!IsAcceptableRedirectUri(redirectUri))
-            {
-                _logger.LogWarning(
-                    "Rejected non-HTTPS redirect URI {RedirectUri} for client {ClientId}",
-                    redirectUri, clientId);
-                return false;
-            }
-
-            // Pin this URI to the client
-            uris.Add(redirectUri);
-            entity.RedirectUris = JsonSerializer.Serialize(uris);
-            entity.UpdatedAt = DateTime.UtcNow;
-            await _dbContext.SaveChangesAsync(ct);
-
-            _logger.LogInformation(
-                "Pinned redirect URI {RedirectUri} to client {ClientId}",
-                redirectUri, clientId);
-            return true;
-        }
-
-        // Check if the redirect URI matches any registered URI
-        if (uris.Contains(redirectUri))
-        {
-            return true;
-        }
-
-        _logger.LogWarning(
-            "Redirect URI {RedirectUri} does not match any registered URIs for client {ClientId}",
-            redirectUri, clientId);
-        return false;
-    }
-
-    /// <summary>
-    /// Check if a redirect URI is acceptable for first-use pinning.
-    /// Accepts HTTPS URIs and localhost HTTP URIs (for development/native apps).
-    /// </summary>
-    private static bool IsAcceptableRedirectUri(string redirectUri)
-    {
-        if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out var uri))
+            _logger.LogWarning(
+                "Redirect URI validation failed: client {ClientId} is not registered. " +
+                "Apps must call POST /oauth/register before authorize.", clientId);
             return false;
+        }
 
-        // HTTPS is always acceptable
-        if (uri.Scheme == Uri.UriSchemeHttps)
-            return true;
+        var registered = DeserializeRedirectUris(entity.RedirectUris);
+        if (registered.Count == 0)
+        {
+            _logger.LogWarning(
+                "Client {ClientId} has no registered redirect URIs", clientId);
+            return false;
+        }
 
-        // Allow HTTP for localhost (native app development)
-        if (uri.Scheme == Uri.UriSchemeHttp &&
-            (uri.Host == "localhost" || uri.Host == "127.0.0.1"))
-            return true;
-
-        return false;
+        // RFC 8252 redirect URI matching: byte-exact except loopback allows any port
+        return registered.Any(r => _redirectUriValidator.IsValidForAuthorize(r, redirectUri));
     }
 
     /// <summary>
@@ -166,6 +105,50 @@ public class OAuthClientService : IOAuthClientService
         catch (JsonException)
         {
             return new List<string>();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task SeedKnownOAuthClientsAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        // Read existing software_ids for this tenant so we can skip already-seeded entries.
+        var existingSoftwareIds = await _dbContext.OAuthClients
+            .IgnoreQueryFilters()
+            .Where(c => c.TenantId == tenantId && c.SoftwareId != null)
+            .Select(c => c.SoftwareId!)
+            .ToListAsync(ct);
+        var existingSet = new HashSet<string>(existingSoftwareIds, StringComparer.Ordinal);
+
+        var added = 0;
+        foreach (var entry in KnownOAuthClients.Entries)
+        {
+            if (existingSet.Contains(entry.SoftwareId))
+                continue;
+
+            _dbContext.OAuthClients.Add(new OAuthClientEntity
+            {
+                Id = Guid.CreateVersion7(),
+                TenantId = tenantId,
+                ClientId = Guid.CreateVersion7().ToString(),
+                SoftwareId = entry.SoftwareId,
+                ClientName = entry.DisplayName,
+                ClientUri = entry.Homepage,
+                LogoUri = entry.LogoUri,
+                DisplayName = entry.DisplayName,
+                IsKnown = true,
+                RedirectUris = JsonSerializer.Serialize(entry.RedirectUris),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            });
+            added++;
+        }
+
+        if (added > 0)
+        {
+            await _dbContext.SaveChangesAsync(ct);
+            _logger.LogInformation(
+                "Seeded {Count} known OAuth clients for tenant {TenantId}",
+                added, tenantId);
         }
     }
 

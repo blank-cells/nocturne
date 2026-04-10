@@ -112,8 +112,16 @@ public class OAuthController : ControllerBase
             });
         }
 
-        // Find or create the client
-        var client = await _clientService.FindOrCreateClientAsync(client_id);
+        // Look up the registered client; clients must register via DCR before authorize
+        var client = await _clientService.GetClientAsync(client_id);
+        if (client == null)
+        {
+            return BadRequest(new OAuthError
+            {
+                Error = "invalid_client",
+                ErrorDescription = "Unknown client_id. Register first via POST /oauth/register.",
+            });
+        }
 
         // Validate redirect URI
         if (!await _clientService.ValidateRedirectUriAsync(client_id, redirect_uri))
@@ -227,7 +235,15 @@ public class OAuthController : ControllerBase
         }
 
         // Find the client
-        var client = await _clientService.FindOrCreateClientAsync(request.ClientId);
+        var client = await _clientService.GetClientAsync(request.ClientId);
+        if (client == null)
+        {
+            return BadRequest(new OAuthError
+            {
+                Error = "invalid_client",
+                ErrorDescription = "Unknown client_id.",
+            });
+        }
 
         // Re-validate redirect URI to prevent manipulation between GET and POST
         if (!await _clientService.ValidateRedirectUriAsync(request.ClientId, request.RedirectUri))
@@ -390,7 +406,15 @@ public class OAuthController : ControllerBase
         }
 
         // Validate client
-        await _clientService.FindOrCreateClientAsync(client_id);
+        var deviceClient = await _clientService.GetClientAsync(client_id);
+        if (deviceClient == null)
+        {
+            return BadRequest(new OAuthError
+            {
+                Error = "invalid_client",
+                ErrorDescription = "Unknown client_id. Register first via POST /oauth/register.",
+            });
+        }
 
         // Normalize scopes
         var normalizedScopes = OAuthScopes.Normalize(requestedScopes);
@@ -547,7 +571,15 @@ public class OAuthController : ControllerBase
         [FromQuery] string client_id
     )
     {
-        var client = await _clientService.FindOrCreateClientAsync(client_id);
+        var client = await _clientService.GetClientAsync(client_id);
+        if (client == null)
+        {
+            return NotFound(new OAuthError
+            {
+                Error = "invalid_client",
+                ErrorDescription = "Unknown client_id.",
+            });
+        }
 
         return Ok(new OAuthClientInfoResponse
         {

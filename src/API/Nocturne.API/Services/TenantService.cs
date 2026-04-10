@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -69,6 +70,9 @@ public partial class TenantService : ITenantService
         // Create Public subject membership (no roles = unconfigured sentinel)
         await CreatePublicSubjectMembershipAsync(context, tenant.Id, ct);
 
+        // Seed bundled known OAuth clients (Trio, xDrip+, etc.)
+        await SeedKnownOAuthClientsAsync(context, tenant.Id, ct);
+
         // Assign creator as owner
         var ownerRole = await context.TenantRoles
             .FirstAsync(r => r.TenantId == tenant.Id && r.Slug == "owner", ct);
@@ -99,6 +103,9 @@ public partial class TenantService : ITenantService
 
         // Create Public subject membership (no roles = unconfigured sentinel)
         await CreatePublicSubjectMembershipAsync(context, tenant.Id, ct);
+
+        // Seed bundled known OAuth clients (Trio, xDrip+, etc.)
+        await SeedKnownOAuthClientsAsync(context, tenant.Id, ct);
 
         return ToCreatedDto(tenant, plaintextSecret);
     }
@@ -400,6 +407,9 @@ public partial class TenantService : ITenantService
                     _logger.LogWarning("Public system subject not found — skipping public access membership for tenant {TenantId}", tenant.Id);
                 }
 
+                // Seed bundled known OAuth clients (Trio, xDrip+, etc.)
+                await SeedKnownOAuthClientsAsync(context, tenant.Id, ct);
+
                 // 2. Find or create subject by email
                 var subject = await context.Subjects.FirstOrDefaultAsync(s => s.Email == ownerEmail, ct);
                 if (subject == null)
@@ -502,4 +512,48 @@ public partial class TenantService : ITenantService
 
     private static TenantCreatedDto ToCreatedDto(TenantEntity t, string plaintextSecret) =>
         new(t.Id, t.Slug, t.DisplayName, t.IsActive, t.IsDefault, t.SysCreatedAt, plaintextSecret);
+
+    /// <summary>
+    /// Seed the bundled known-app directory into a tenant's oauth_clients.
+    /// Idempotent: existing rows for the same software_id are left untouched.
+    /// </summary>
+    private static async Task SeedKnownOAuthClientsAsync(
+        NocturneDbContext context, Guid tenantId, CancellationToken ct)
+    {
+        var existingSoftwareIds = await context.OAuthClients
+            .IgnoreQueryFilters()
+            .Where(c => c.TenantId == tenantId && c.SoftwareId != null)
+            .Select(c => c.SoftwareId!)
+            .ToListAsync(ct);
+        var existingSet = new HashSet<string>(existingSoftwareIds, StringComparer.Ordinal);
+
+        var added = 0;
+        foreach (var entry in KnownOAuthClients.Entries)
+        {
+            if (existingSet.Contains(entry.SoftwareId))
+                continue;
+
+            context.OAuthClients.Add(new OAuthClientEntity
+            {
+                Id = Guid.CreateVersion7(),
+                TenantId = tenantId,
+                ClientId = Guid.CreateVersion7().ToString(),
+                SoftwareId = entry.SoftwareId,
+                ClientName = entry.DisplayName,
+                ClientUri = entry.Homepage,
+                LogoUri = entry.LogoUri,
+                DisplayName = entry.DisplayName,
+                IsKnown = true,
+                RedirectUris = JsonSerializer.Serialize(entry.RedirectUris),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            });
+            added++;
+        }
+
+        if (added > 0)
+        {
+            await context.SaveChangesAsync(ct);
+        }
+    }
 }
