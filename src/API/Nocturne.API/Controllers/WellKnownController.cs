@@ -139,6 +139,7 @@ public class WellKnownController : ControllerBase
                 DeviceAuthorizationEndpoint = $"{baseUrl}/api/oauth/device",
                 RevocationEndpoint = $"{baseUrl}/api/oauth/revoke",
                 IntrospectionEndpoint = $"{baseUrl}/api/oauth/introspect",
+                RegistrationEndpoint = $"{baseUrl}/api/oauth/register",
                 JwksUri = $"{baseUrl}/.well-known/jwks.json",
                 ResponseTypesSupported = new[] { "code" },
                 GrantTypesSupported = new[]
@@ -227,6 +228,7 @@ public class OAuthAuthorizationServerMetadata
     public string? DeviceAuthorizationEndpoint { get; set; }
     public string? RevocationEndpoint { get; set; }
     public string? IntrospectionEndpoint { get; set; }
+    public string? RegistrationEndpoint { get; set; }
     public string JwksUri { get; set; } = string.Empty;
     public string[] ResponseTypesSupported { get; set; } = Array.Empty<string>();
     public string[] GrantTypesSupported { get; set; } = Array.Empty<string>();
