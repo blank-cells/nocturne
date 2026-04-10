@@ -35,6 +35,9 @@ public class OAuthClientInfo
     public Guid Id { get; set; }
     public string ClientId { get; set; } = string.Empty;
     public string? DisplayName { get; set; }
+    public string? ClientUri { get; set; }
+    public string? LogoUri { get; set; }
+    public string? SoftwareId { get; set; }
     public bool IsKnown { get; set; }
     public List<string> RedirectUris { get; set; } = new();
 }

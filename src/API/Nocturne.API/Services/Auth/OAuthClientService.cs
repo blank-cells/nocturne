@@ -38,15 +38,12 @@ public class OAuthClientService : IOAuthClientService
             return MapToInfo(entity);
         }
 
-        // Check the known app directory for metadata
-        var knownEntry = KnownOAuthClients.Match(clientId);
-
         entity = new OAuthClientEntity
         {
             Id = Guid.CreateVersion7(),
             ClientId = clientId,
-            DisplayName = knownEntry?.DisplayName,
-            IsKnown = knownEntry != null,
+            DisplayName = null,
+            IsKnown = false,
             RedirectUris = "[]",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -182,6 +179,9 @@ public class OAuthClientService : IOAuthClientService
             Id = entity.Id,
             ClientId = entity.ClientId,
             DisplayName = entity.DisplayName,
+            ClientUri = entity.ClientUri,
+            LogoUri = entity.LogoUri,
+            SoftwareId = entity.SoftwareId,
             IsKnown = entity.IsKnown,
             RedirectUris = DeserializeRedirectUris(entity.RedirectUris)
         };

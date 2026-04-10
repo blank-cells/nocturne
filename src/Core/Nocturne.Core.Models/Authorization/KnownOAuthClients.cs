@@ -2,22 +2,36 @@ namespace Nocturne.Core.Models.Authorization;
 
 /// <summary>
 /// Well-known diabetes app directory. Ships bundled with Nocturne and updates
-/// with releases. Provides identity metadata for consent screens, not authorization.
-/// Any app can initiate an OAuth flow without being in this directory.
+/// with releases. Provides identity metadata for consent screens and for
+/// seeding pre-verified OAuth client rows per tenant via DCR.
 /// </summary>
 public static class KnownOAuthClients
 {
     /// <summary>
-    /// Bundled known client entries. These provide identity information for the
-    /// consent screen so users can recognize apps they're authorizing.
+    /// Bundled known client entries keyed on reverse-DNS software_id.
     /// </summary>
     public static readonly IReadOnlyList<KnownClientEntry> Entries = new List<KnownClientEntry>
     {
         new()
         {
-            ClientIdPattern = "xdrip-*",
+            SoftwareId = "org.trio.diabetes",
+            DisplayName = "Trio",
+            Homepage = "https://github.com/nightscout/Trio",
+            RedirectUris = ["trio://oauth/callback"],
+            TypicalScopes =
+            [
+                OAuthScopes.EntriesReadWrite,
+                OAuthScopes.TreatmentsReadWrite,
+                OAuthScopes.DeviceStatusReadWrite,
+                OAuthScopes.ProfileRead,
+            ],
+        },
+        new()
+        {
+            SoftwareId = "org.nightscoutfoundation.xdrip",
             DisplayName = "xDrip+",
             Homepage = "https://github.com/NightscoutFoundation/xDrip",
+            RedirectUris = ["org.nightscoutfoundation.xdrip://oauth/callback"],
             TypicalScopes =
             [
                 OAuthScopes.EntriesReadWrite,
@@ -27,9 +41,23 @@ public static class KnownOAuthClients
         },
         new()
         {
-            ClientIdPattern = "aaps-*",
+            SoftwareId = "org.loopkit.loop",
+            DisplayName = "Loop",
+            Homepage = "https://loopkit.github.io/loopdocs/",
+            RedirectUris = ["org.loopkit.loop://oauth/callback"],
+            TypicalScopes =
+            [
+                OAuthScopes.EntriesReadWrite,
+                OAuthScopes.TreatmentsReadWrite,
+                OAuthScopes.DeviceStatusReadWrite,
+            ],
+        },
+        new()
+        {
+            SoftwareId = "org.androidaps.aaps",
             DisplayName = "AAPS",
             Homepage = "https://androidaps.readthedocs.io",
+            RedirectUris = ["org.androidaps.aaps://oauth/callback"],
             TypicalScopes =
             [
                 OAuthScopes.EntriesReadWrite,
@@ -40,21 +68,10 @@ public static class KnownOAuthClients
         },
         new()
         {
-            ClientIdPattern = "loop-*",
-            DisplayName = "Loop",
-            Homepage = "https://loopkit.github.io/loopdocs/",
-            TypicalScopes =
-            [
-                OAuthScopes.EntriesReadWrite,
-                OAuthScopes.TreatmentsReadWrite,
-                OAuthScopes.DeviceStatusReadWrite,
-            ],
-        },
-        new()
-        {
-            ClientIdPattern = "nightscout-*",
+            SoftwareId = "github.nightscout.nightscout",
             DisplayName = "Nightscout",
             Homepage = "https://nightscout.github.io/",
+            RedirectUris = [],
             TypicalScopes =
             [
                 OAuthScopes.EntriesRead,
@@ -65,22 +82,25 @@ public static class KnownOAuthClients
         },
         new()
         {
-            ClientIdPattern = "sugarmate-*",
+            SoftwareId = "io.sugarmate",
             DisplayName = "Sugarmate",
             Homepage = "https://sugarmate.io/",
+            RedirectUris = [],
             TypicalScopes = [OAuthScopes.EntriesRead],
         },
         new()
         {
-            ClientIdPattern = "nightwatch-*",
+            SoftwareId = "com.nickenilsson.nightwatch",
             DisplayName = "Nightwatch",
             Homepage = "https://github.com/nickenilsson/nightwatch",
+            RedirectUris = [],
             TypicalScopes = [OAuthScopes.EntriesRead, OAuthScopes.TreatmentsRead],
         },
         new()
         {
-            ClientIdPattern = "nocturne-follower-internal",
+            SoftwareId = "com.nocturne.follower",
             DisplayName = "Nocturne Follower",
+            RedirectUris = [],
             TypicalScopes =
             [
                 OAuthScopes.EntriesRead,
@@ -91,9 +111,10 @@ public static class KnownOAuthClients
         },
         new()
         {
-            ClientIdPattern = "nocturne-widget-windows11",
+            SoftwareId = "com.nocturne.widget.windows",
             DisplayName = "Nocturne Windows Widget",
             Homepage = "https://github.com/nightscout/nocturne",
+            RedirectUris = [],
             TypicalScopes =
             [
                 OAuthScopes.EntriesRead,
@@ -104,9 +125,10 @@ public static class KnownOAuthClients
         },
         new()
         {
-            ClientIdPattern = "nocturne-tray",
+            SoftwareId = "com.nocturne.tray",
             DisplayName = "Nocturne Tray",
             Homepage = "https://github.com/nightscout/nocturne",
+            RedirectUris = [],
             TypicalScopes =
             [
                 OAuthScopes.EntriesRead,
@@ -118,38 +140,20 @@ public static class KnownOAuthClients
     };
 
     /// <summary>
-    /// The well-known client ID used for follower (user-to-user sharing) grants.
+    /// The well-known software_id used for follower (user-to-user sharing) grants.
+    /// </summary>
+    public const string FollowerSoftwareId = "com.nocturne.follower";
+
+    /// <summary>
+    /// Legacy constant kept for backward compatibility with existing follower grant code.
     /// </summary>
     public const string FollowerClientId = "nocturne-follower-internal";
 
     /// <summary>
-    /// Try to match a client_id against the known app directory.
-    /// Uses prefix matching: "xdrip-pixel9" matches pattern "xdrip-*".
+    /// Look up a known app entry by its RFC 7591 software_id (reverse-DNS).
     /// </summary>
-    /// <param name="clientId">The client_id to look up</param>
-    /// <returns>The matching entry, or null if not in the directory</returns>
-    public static KnownClientEntry? Match(string clientId)
-    {
-        if (string.IsNullOrEmpty(clientId))
-            return null;
-
-        return Entries.FirstOrDefault(entry => MatchesPattern(clientId, entry.ClientIdPattern));
-    }
-
-    /// <summary>
-    /// Simple glob matching: "xdrip-*" matches "xdrip-pixel9", "xdrip-anything".
-    /// Only supports trailing wildcard.
-    /// </summary>
-    private static bool MatchesPattern(string value, string pattern)
-    {
-        if (pattern.EndsWith('*'))
-        {
-            var prefix = pattern[..^1];
-            return value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
-        }
-
-        return string.Equals(value, pattern, StringComparison.OrdinalIgnoreCase);
-    }
+    public static KnownClientEntry? MatchBySoftwareId(string softwareId) =>
+        Entries.FirstOrDefault(e => string.Equals(e.SoftwareId, softwareId, StringComparison.Ordinal));
 }
 
 /// <summary>
@@ -158,22 +162,33 @@ public static class KnownOAuthClients
 public class KnownClientEntry
 {
     /// <summary>
-    /// Glob pattern to match client_id (e.g., "xdrip-*")
+    /// RFC 7591 software_id — reverse-DNS identifier stable across installs
+    /// (e.g., "org.trio.diabetes").
     /// </summary>
-    public string ClientIdPattern { get; set; } = string.Empty;
+    public string SoftwareId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Human-readable app name for the consent screen
+    /// Human-readable app name for the consent screen.
     /// </summary>
     public string DisplayName { get; set; } = string.Empty;
 
     /// <summary>
-    /// App homepage URL
+    /// App homepage URL.
     /// </summary>
     public string? Homepage { get; set; }
 
     /// <summary>
-    /// Typical scopes this app requests (informational, not enforced)
+    /// App logo URI for the consent screen.
     /// </summary>
-    public List<string> TypicalScopes { get; set; } = new();
+    public string? LogoUri { get; set; }
+
+    /// <summary>
+    /// Allowed redirect URIs to seed when the client registers via DCR.
+    /// </summary>
+    public List<string> RedirectUris { get; set; } = [];
+
+    /// <summary>
+    /// Typical scopes this app requests (informational, used for seeding).
+    /// </summary>
+    public List<string> TypicalScopes { get; set; } = [];
 }

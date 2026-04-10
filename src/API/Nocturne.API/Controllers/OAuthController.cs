@@ -547,14 +547,13 @@ public class OAuthController : ControllerBase
     )
     {
         var client = await _clientService.FindOrCreateClientAsync(client_id);
-        var knownEntry = KnownOAuthClients.Match(client_id);
 
         return Ok(new OAuthClientInfoResponse
         {
             ClientId = client.ClientId,
             DisplayName = client.DisplayName,
             IsKnown = client.IsKnown,
-            Homepage = knownEntry?.Homepage,
+            Homepage = client.ClientUri,
         });
     }
 
