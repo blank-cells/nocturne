@@ -16,7 +16,7 @@
 	const {
 		editor,
 		class: className,
-		excludedCommands = ['undo-redo', 'media', 'table', 'math'],
+		excludedCommands = ['undo-redo', 'media', 'table'],
 		children
 	}: EdraToolbarProps = $props();
 
@@ -38,7 +38,6 @@
 		if (editor.isActive('video')) return false;
 		if (editor.isActive('iframe')) return false;
 		if (editor.isActive('audio')) return false;
-		if (editor.isActive('blockMath') || editor.isActive('inlineMath')) return false;
 		if (editor.isActive('ai-highlight')) return false;
 		const {
 			state: {
@@ -122,7 +121,6 @@
 				{/each}
 			{/if}
 		{/each}
-		<ToolBarIcon {editor} command={commands.math[0]} />
 		<FontSize {editor} />
 		<QuickColors {editor} />
 	{/if}

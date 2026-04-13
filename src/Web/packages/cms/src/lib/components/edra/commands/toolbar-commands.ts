@@ -18,9 +18,7 @@ import ListChecks from '@lucide/svelte/icons/list-checks';
 import ListOrdered from '@lucide/svelte/icons/list-ordered';
 import Pilcrow from '@lucide/svelte/icons/pilcrow';
 import Quote from '@lucide/svelte/icons/quote';
-import Radical from '@lucide/svelte/icons/radical';
 import Redo from '@lucide/svelte/icons/redo-2';
-import SquareRadical from '@lucide/svelte/icons/square-radical';
 import StrikeThrough from '@lucide/svelte/icons/strikethrough';
 import Subscript from '@lucide/svelte/icons/subscript';
 import Superscript from '@lucide/svelte/icons/superscript';
@@ -28,7 +26,6 @@ import Table from '@lucide/svelte/icons/table';
 import Underline from '@lucide/svelte/icons/underline';
 import Undo from '@lucide/svelte/icons/undo-2';
 import Video from '@lucide/svelte/icons/video';
-import { isTextSelection } from '@tiptap/core';
 import { isMac } from '../utils.ts';
 import type { EdraToolBarCommands } from './types.ts';
 import strings from '../strings.ts';
@@ -483,34 +480,6 @@ const commands: Record<string, EdraToolBarCommands[]> = {
 			isActive: (editor) => editor.isActive('table')
 		}
 	],
-	math: [
-		{
-			icon: Radical,
-			name: 'mathematics',
-			tooltip: strings.command.inlineExpression,
-			onClick: (editor) => {
-				let latex = 'a^2 + b^2 = c^2';
-				const chain = editor.chain().focus();
-				if (isTextSelection(editor.view.state.selection)) {
-					const { from, to } = editor.view.state.selection;
-					latex = editor.view.state.doc.textBetween(from, to);
-					chain.deleteRange({ from, to });
-				}
-				chain.insertInlineMath({ latex }).run();
-			},
-			isActive: (editor) => editor.isActive('inlineMath')
-		},
-		{
-			icon: SquareRadical,
-			name: 'mathematics',
-			tooltip: strings.command.blockExpression,
-			onClick: (editor) => {
-				const latex = 'a^2 + b^2 = c^2';
-				editor.chain().focus().insertBlockMath({ latex }).run();
-			},
-			isActive: (editor) => editor.isActive('blockMath')
-		}
-	]
 };
 
 export default commands;

@@ -29,8 +29,6 @@ const strings = {
 		audioPlaceholder: 'Audio Placeholder',
 		iframePlaceholder: 'Iframe Placeholder',
 		table: 'Table',
-		inlineExpression: 'Inline Expression',
-		blockExpression: 'Block Expression',
 		horizontalRule: 'Horizontal Rule',
 
 		formatGroup: 'Format',
@@ -158,9 +156,6 @@ const strings = {
 			save: 'Save',
 			enterLinkPlaceholder: 'Type or paste a link',
 			enterLinkButton: 'Set new link'
-		},
-		math: {
-			enterExpressionPlaceholder: 'Enter Math Expression'
 		},
 		table: {
 			headerColumn: 'Header Column',

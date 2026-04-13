@@ -20,7 +20,6 @@
 		"bits-ui": "^2.14.4",
 		"clsx": "^2.1.1",
 		"formsnap": "^2.0.1",
-		"katex": "^0.16.45",
 		"mdsvex": "^0.12.3",
 		"mode-watcher": "^1.1.0",
 		"svelte": "^5.45.4",

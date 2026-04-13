@@ -12,9 +12,7 @@ import AutoJoiner from 'tiptap-extension-auto-joiner';
 import { ColorHighlighter } from './extensions/ColorHighlighter.ts';
 import SearchAndReplace from './extensions/FindAndReplace.ts';
 import { Table, TableCell, TableHeader, TableRow } from './extensions/table/index.ts';
-import 'katex/dist/katex.min.css';
 import { Markdown } from '@tiptap/markdown';
-import { InlineMathReplacer } from './extensions/InlineMathReplacer.ts';
 import strings from './strings.ts';
 
 export default (
@@ -90,7 +88,6 @@ export default (
 			TableHeader,
 			TableRow,
 			TableCell,
-			InlineMathReplacer,
 			Markdown,
 
 			...(extensions ?? [])

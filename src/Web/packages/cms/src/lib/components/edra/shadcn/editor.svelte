@@ -7,7 +7,6 @@
 	import './style.css';
 	import '../onedark.css';
 	import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
-	import Mathematics from '@tiptap/extension-mathematics';
 	import TableOfContents, { getHierarchicalIndexes } from '@tiptap/extension-table-of-contents';
 	import { all, createLowlight } from 'lowlight';
 	import { toast } from 'svelte-sonner';
@@ -34,18 +33,10 @@
 	import VideoExtendedComp from './components/VideoExtended.svelte';
 	import VideoPlaceHolderComp from './components/VideoPlaceholder.svelte';
 	import Link from './menus/Link.svelte';
-	import Math from './menus/Math.svelte';
-	import MathInline from './menus/MathInline.svelte';
 	import TableCol from './menus/TableCol.svelte';
 	import TableRow from './menus/TableRow.svelte';
 
 	const lowlight = createLowlight(all);
-
-	let blockMathPos = $state(0);
-	let blockMathLatex = $state('');
-
-	let inlineMathPos = $state(0);
-	let inlineMathLatex = $state('');
 
 	let {
 		editor = $bindable(),
@@ -83,29 +74,6 @@
 				slashcommand(SlashCommandList),
 				FileDrop.configure({
 					handler: onFileSelect
-				}),
-				Mathematics.configure({
-					// Options for the block math node
-					blockOptions: {
-						onClick: (node, pos) => {
-							blockMathPos = pos;
-							blockMathLatex = node.attrs.latex;
-						}
-					},
-					inlineOptions: {
-						onClick: (node, pos) => {
-							inlineMathPos = pos;
-							inlineMathLatex = node.attrs.latex;
-						}
-					},
-					// Options for the KaTeX renderer. See here: https://katex.org/docs/options.html
-					katexOptions: {
-						throwOnError: true, // don't throw an error if the LaTeX code is invalid
-						macros: {
-							'\\R': '\\mathbb{R}', // add a macro for the real numbers
-							'\\N': '\\mathbb{N}' // add a macro for the natural numbers
-						}
-					}
 				}),
 				TableOfContents.configure({
 					getIndex: getHierarchicalIndexes,
@@ -145,13 +113,6 @@
 	<Link {editor} parentElement={element} />
 	<TableCol {editor} parentElement={element} />
 	<TableRow {editor} parentElement={element} />
-	<Math {editor} mathPos={blockMathPos} mathLatex={blockMathLatex} parentElement={element} />
-	<MathInline
-		{editor}
-		mathPos={inlineMathPos}
-		mathLatex={inlineMathLatex}
-		parentElement={element}
-	/>
 {/if}
 
 <div
