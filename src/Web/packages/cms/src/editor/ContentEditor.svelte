@@ -6,6 +6,7 @@
   import MetadataPanel from './MetadataPanel.svelte';
   import ContentSidebar from './ContentSidebar.svelte';
   import PreviewPane from './PreviewPane.svelte';
+  import ComponentPropsEditor from './ComponentPropsEditor.svelte';
 
   import type { Component } from 'svelte';
 
@@ -94,7 +95,7 @@
     label={config.label}
   />
 
-  <div class="flex flex-1 flex-col min-w-0 basis-1/2 overflow-hidden">
+  <div class="flex flex-1 flex-col min-w-0 basis-1/2">
     {#if editor}
       <div class="border-b border-border/40">
         <EdraToolBar {editor} />
@@ -117,6 +118,10 @@
         additionalExtensions={editorExtensions}
       />
     </div>
+
+    {#if editor}
+      <ComponentPropsEditor {editor} />
+    {/if}
 
     <div class="flex items-center justify-end gap-2 border-t border-border/40 px-4 py-2">
       <span class="mr-auto text-xs text-muted-foreground">

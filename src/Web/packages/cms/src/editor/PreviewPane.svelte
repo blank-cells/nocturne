@@ -68,7 +68,7 @@
   });
 </script>
 
-<div class="flex h-full w-[400px] shrink-0 flex-col border-l border-border/40 overflow-hidden">
+<div class="sticky top-0 flex h-screen w-[400px] shrink-0 flex-col border-l border-border/40 overflow-hidden">
   <div class="flex items-center border-b border-border/40 px-4 py-2">
     <span class="text-sm font-medium text-muted-foreground">Preview</span>
   </div>
