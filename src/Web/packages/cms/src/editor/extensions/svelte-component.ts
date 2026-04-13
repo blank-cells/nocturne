@@ -54,14 +54,19 @@ export const SvelteComponentExtension = (components: ComponentDefinition[]) => {
 
     renderHTML({ HTMLAttributes }) {
       const { componentName, props: propsJson, ...rest } = HTMLAttributes;
-      const props = JSON.parse(propsJson || '{}');
+      const props = JSON.parse(propsJson || '{}') as Record<string, string>;
+      const propsDisplay = Object.entries(props)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join(' ');
+      const label = propsDisplay ? `<${componentName} ${propsDisplay} />` : `<${componentName} />`;
       return [
         'div',
         mergeAttributes(rest, {
           'data-svelte-component': componentName,
+          'data-component-props': propsJson,
           class: 'svelte-component-block',
         }),
-        `${componentName}`,
+        label,
       ];
     },
 
@@ -77,6 +82,19 @@ export const SvelteComponentExtension = (components: ComponentDefinition[]) => {
                 props: JSON.stringify(props ?? {}),
               },
             });
+          },
+        updateSvelteComponentProps:
+          (props: Record<string, string>) =>
+          ({ tr, state }) => {
+            const { selection } = state;
+            const node = state.doc.nodeAt(selection.from);
+            if (node?.type.name !== 'svelteComponent') return false;
+            const existing = JSON.parse(node.attrs.props || '{}');
+            tr.setNodeMarkup(selection.from, undefined, {
+              ...node.attrs,
+              props: JSON.stringify({ ...existing, ...props }),
+            });
+            return true;
           },
       };
     },

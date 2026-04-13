@@ -85,7 +85,7 @@
   }
 </script>
 
-<div class="flex h-screen bg-background">
+<div class="flex min-h-screen bg-background items-start">
   <ContentSidebar
     {items}
     {selectedId}
@@ -94,7 +94,7 @@
     label={config.label}
   />
 
-  <div class="flex flex-1 flex-col min-w-0 basis-1/2">
+  <div class="flex flex-1 flex-col min-w-0 basis-1/2 overflow-hidden">
     {#if editor}
       <div class="border-b border-border/40">
         <EdraToolBar {editor} />

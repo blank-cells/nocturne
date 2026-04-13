@@ -38,9 +38,16 @@
 
       // The component itself
       const componentName = match[1];
-      // Extract props from data attributes if needed
-      const propsMatch = match[0].match(/data-props="([^"]*)"/);
-      const props = propsMatch ? JSON.parse(decodeURIComponent(propsMatch[1])) : {};
+      // Extract props from data-component-props attribute
+      const propsMatch = match[0].match(/data-component-props="([^"]*)"/);
+      let props: Record<string, unknown> = {};
+      if (propsMatch) {
+        try {
+          // The JSON is HTML-encoded in the attribute (quotes become &quot;)
+          const decoded = propsMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+          props = JSON.parse(decoded);
+        } catch { /* ignore parse errors */ }
+      }
 
       if (componentMap[componentName]) {
         result.push({ type: 'component', content: '', componentName, props });

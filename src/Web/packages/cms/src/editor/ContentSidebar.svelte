@@ -29,7 +29,7 @@
   );
 </script>
 
-<div class="flex h-full w-64 flex-col border-r border-border/40">
+<div class="sticky top-0 flex h-screen w-64 flex-col border-r border-border/40">
   <div class="flex items-center justify-between p-4">
     <h2 class="text-sm font-semibold">{label}</h2>
     <Button variant="ghost" size="icon" onclick={onCreate}>
