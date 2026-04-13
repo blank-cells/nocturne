@@ -142,18 +142,15 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 
-// Note: Using NSwag instead of Microsoft.AspNetCore.OpenApi for better compatibility
-builder.Services.AddOpenApi();
+// ── OpenAPI document generation ──────────────────────────────────────
+// NSwag generates the "nocturne" spec at BUILD TIME for TypeScript client codegen.
+// Microsoft OpenAPI serves specs at RUNTIME for Scalar interactive docs.
 
-// Add OpenAPI document generation with NSwag — split into two documents:
-//   "nocturne"    → V4 + authentication + root controllers (new Nocturne API)
-//   "nightscout"  → V1, V2, V3 (legacy Nightscout compatibility layer)
-
+// NSwag (build-time only — used by nswag.json MSBuild target for TS client generation)
 builder.Services.AddOpenApiDocument(config =>
 {
     config.DocumentName = "nocturne";
 
-    // Include: V4, Authentication, and root-level controllers (exactly Nocturne.API.Controllers).
     config.AddOperationFilter(ctx =>
     {
         var ns = ctx.ControllerType.Namespace ?? string.Empty;
@@ -171,53 +168,38 @@ builder.Services.AddOpenApiDocument(config =>
         document.Info.Version = "0.0.1";
         document.Info.Title = "Nocturne API";
         document.Info.Description = "Modern diabetes management API. For support, join our Discord.";
-        document.Info.Contact = new NSwag.OpenApiContact
-        {
-            Name = "Nocturne",
-            Url = "https://discord.gg/H75V4rMwp4",
-        };
-        document.Info.License = new NSwag.OpenApiLicense
-        {
-            Name = "AGPL-3.0-or-later",
-            Url = "https://www.gnu.org/licenses/agpl-3.0.html",
-        };
     };
 });
 
-builder.Services.AddOpenApiDocument(config =>
+// Microsoft OpenAPI (runtime — serves specs for Scalar docs UI)
+builder.Services.AddOpenApi("nocturne", options =>
 {
-    config.DocumentName = "nightscout";
-
-    // Include: V1, V2, and V3 controllers only.
-    config.AddOperationFilter(ctx =>
+    options.ShouldInclude = desc =>
     {
-        var ns = ctx.ControllerType.Namespace ?? string.Empty;
+        var ns = (desc.ActionDescriptor as Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor)
+            ?.ControllerTypeInfo.Namespace ?? string.Empty;
+        return ns.Contains(".Controllers.V4.")
+            || ns.EndsWith(".Controllers.V4", StringComparison.Ordinal)
+            || ns.Contains(".Controllers.Authentication")
+            || ns == "Nocturne.API.Controllers";
+    };
+    options.AddOperationTransformer<FolderBasedTagOperationTransformer>();
+});
+
+builder.Services.AddOpenApi("nightscout", options =>
+{
+    options.ShouldInclude = desc =>
+    {
+        var ns = (desc.ActionDescriptor as Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor)
+            ?.ControllerTypeInfo.Namespace ?? string.Empty;
         return ns.Contains(".Controllers.V1.")
             || ns.EndsWith(".Controllers.V1", StringComparison.Ordinal)
             || ns.Contains(".Controllers.V2.")
             || ns.EndsWith(".Controllers.V2", StringComparison.Ordinal)
             || ns.Contains(".Controllers.V3.")
             || ns.EndsWith(".Controllers.V3", StringComparison.Ordinal);
-    });
-
-    config.OperationProcessors.Add(new FolderBasedTagOperationProcessor());
-
-    config.PostProcess = document =>
-    {
-        document.Info.Version = "1.0.0";
-        document.Info.Title = "Nightscout API";
-        document.Info.Description = "Legacy Nightscout API compatibility layer. See the original Nightscout documentation at https://nightscout.github.io/";
-        document.Info.Contact = new NSwag.OpenApiContact
-        {
-            Name = "Nocturne",
-            Url = "https://discord.gg/H75V4rMwp4",
-        };
-        document.Info.License = new NSwag.OpenApiLicense
-        {
-            Name = "AGPL-3.0-or-later",
-            Url = "https://www.gnu.org/licenses/agpl-3.0.html",
-        };
     };
+    options.AddOperationTransformer<FolderBasedTagOperationTransformer>();
 });
 
 // ── Service registration (grouped by concern) ──────────────────────────
@@ -348,8 +330,7 @@ app.MapHub<AlarmHub>("/hubs/alarms");
 app.MapHub<AlertHub>("/hubs/alerts");
 app.MapHub<ConfigHub>("/hubs/config");
 
-// Note: Using NSwag instead of Microsoft.AspNetCore.OpenApi for better compatibility
-// OpenAPI documents are served at /openapi/{documentName}.json
+// Serve OpenAPI specs at /openapi/{documentName}.json
 app.MapOpenApi();
 
 // Scalar API Reference provides interactive API documentation at /scalar
@@ -357,8 +338,8 @@ app.MapScalarApiReference(options =>
 {
     options.WithTitle("Nocturne API Documentation");
     options.WithTheme(Scalar.AspNetCore.ScalarTheme.Mars);
-    options.AddDocument("nocturne", "Nocturne API", "/openapi/nocturne.json", isDefault: true);
-    options.AddDocument("nightscout", "Nightscout API", "/openapi/nightscout.json", isDefault: false);
+    options.AddDocument("nocturne", "Nocturne API", isDefault: true);
+    options.AddDocument("nightscout", "Nightscout API", isDefault: false);
     options.SortTagsAlphabetically();
     options.WithDefaultOpenAllTags(false);
 });
