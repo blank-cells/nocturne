@@ -2,9 +2,9 @@
 	import { Button, buttonVariants } from '@nocturne/ui/ui/button';
 	import * as DropdownMenu from '@nocturne/ui/ui/dropdown-menu';
 	import { cn } from '@nocturne/ui/utils';
-	import AlignCenter from '@lucide/svelte/icons/text-align-center';
-	import AlignLeft from '@lucide/svelte/icons/text-align-start';
-	import AlignRight from '@lucide/svelte/icons/text-align-end';
+	import AlignCenter from '@lucide/svelte/icons/align-center';
+	import AlignLeft from '@lucide/svelte/icons/align-left';
+	import AlignRight from '@lucide/svelte/icons/align-right';
 	import Captions from '@lucide/svelte/icons/captions';
 	import CopyIcon from '@lucide/svelte/icons/copy';
 	import EllipsisVertical from '@lucide/svelte/icons/ellipsis-vertical';
