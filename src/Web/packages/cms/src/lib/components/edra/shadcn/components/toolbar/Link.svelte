@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { buttonVariants } from '@nocturne/ui/ui/button';
-	import Button from '@nocturne/ui/ui/button';
+	import { Button, buttonVariants } from '@nocturne/ui/ui/button';
 	import { Input } from '@nocturne/ui/ui/input';
 	import * as Popover from '@nocturne/ui/ui/popover';
 	import { cn } from '@nocturne/ui/utils';
