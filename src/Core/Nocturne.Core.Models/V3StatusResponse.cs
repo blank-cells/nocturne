@@ -27,6 +27,26 @@ public class V3StatusResponse
     public DateTime ServerTime { get; set; }
 
     /// <summary>
+    /// Server date as Unix epoch milliseconds (legacy: srvDate)
+    /// </summary>
+    public long SrvDate { get; set; }
+
+    /// <summary>
+    /// Storage backend information (legacy: { storage: "mongodb", version: "x.y" })
+    /// </summary>
+    public StorageInfo Storage { get; set; } = new();
+
+    /// <summary>
+    /// API version string (legacy: "3.0.3-alpha")
+    /// </summary>
+    public string ApiVersion { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Per-collection CRUD permission strings (legacy: apiPermissions)
+    /// </summary>
+    public Dictionary<string, string> ApiPermissions { get; set; } = new();
+
+    /// <summary>
     /// API enabled status - typically true
     /// </summary>
     public bool ApiEnabled { get; set; } = true;
@@ -50,6 +70,23 @@ public class V3StatusResponse
     /// Extended V3 status properties
     /// </summary>
     public ExtendedStatusInfo Extended { get; set; } = new();
+}
+
+/// <summary>
+/// Storage backend information
+/// </summary>
+public class StorageInfo
+{
+    /// <summary>
+    /// Storage type (e.g. "mongodb", "postgresql")
+    /// </summary>
+    [System.Text.Json.Serialization.JsonPropertyName("storage")]
+    public string StorageType { get; set; } = "postgresql";
+
+    /// <summary>
+    /// Storage backend version
+    /// </summary>
+    public string Version { get; set; } = string.Empty;
 }
 
 /// <summary>
