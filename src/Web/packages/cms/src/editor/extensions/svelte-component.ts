@@ -1,4 +1,5 @@
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node, mergeAttributes, type Editor } from '@tiptap/core';
+import { registerComponentActions, ComponentIcon } from '../../lib/components/edra/extensions/slash-command/groups.ts';
 
 export interface ComponentDefinition {
   name: string;
@@ -12,6 +13,18 @@ export interface ComponentDefinition {
 }
 
 export const SvelteComponentExtension = (components: ComponentDefinition[]) => {
+  // Register slash command entries for each component
+  registerComponentActions(
+    components.map((comp) => ({
+      name: `component-${comp.name}`,
+      icon: ComponentIcon,
+      tooltip: comp.label,
+      onClick: (editor: Editor) => {
+        (editor.commands as any).insertSvelteComponent(comp.name, comp.defaultProps);
+      },
+    })),
+  );
+
   return Node.create({
     name: 'svelteComponent',
     group: 'block',

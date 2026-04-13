@@ -4,7 +4,7 @@ import { PluginKey } from '@tiptap/pm/state';
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion';
 import type { Component } from 'svelte';
 import SvelteRenderer from '../../svelte-renderer.ts';
-import { GROUPS } from './groups.ts';
+import { getGroups } from './groups.ts';
 
 const extensionName = 'slashCommand';
 
@@ -78,7 +78,7 @@ export default (menuList: Component<any, any, ''>): Extension =>
 						view.focus();
 					},
 					items: ({ query }: { query: string }) => {
-						const withFilteredCommands = GROUPS.map((group) => ({
+						const withFilteredCommands = getGroups().map((group) => ({
 							...group,
 							commands: group.actions.filter((item) => {
 								const labelNormalized = item.tooltip!.toLowerCase().trim();
