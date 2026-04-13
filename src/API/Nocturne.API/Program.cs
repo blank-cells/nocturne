@@ -13,6 +13,7 @@ using Nocturne.API.Hubs;
 using Nocturne.API.Middleware;
 using Nocturne.API.Multitenancy;
 using OpenApi.Remote.Processors;
+using Nocturne.API.OpenApi;
 using Nocturne.Core.Constants;
 using Nocturne.Core.Models.Configuration;
 using Nocturne.Infrastructure.Cache.Extensions;
@@ -144,26 +145,77 @@ builder.Services.AddEndpointsApiExplorer();
 // Note: Using NSwag instead of Microsoft.AspNetCore.OpenApi for better compatibility
 builder.Services.AddOpenApi();
 
-// Add OpenAPI document generation with NSwag
+// Add OpenAPI document generation with NSwag — split into two documents:
+//   "nocturne"    → V4 + authentication + root controllers (new Nocturne API)
+//   "nightscout"  → V1, V2, V3 (legacy Nightscout compatibility layer)
+
 builder.Services.AddOpenApiDocument(config =>
 {
-    // Add remote function metadata processor
+    config.DocumentName = "nocturne";
+
+    // Include: V4, Authentication, and root-level controllers (exactly Nocturne.API.Controllers).
+    config.AddOperationFilter(ctx =>
+    {
+        var ns = ctx.ControllerType.Namespace ?? string.Empty;
+        return ns.Contains(".Controllers.V4.")
+            || ns.EndsWith(".Controllers.V4", StringComparison.Ordinal)
+            || ns.Contains(".Controllers.Authentication")
+            || ns == "Nocturne.API.Controllers";
+    });
+
     config.OperationProcessors.Add(new RemoteFunctionOperationProcessor());
+    config.OperationProcessors.Add(new FolderBasedTagOperationProcessor());
 
     config.PostProcess = document =>
     {
-        document.Info.Version = "v1";
+        document.Info.Version = "0.0.1";
         document.Info.Title = "Nocturne API";
-        document.Info.Description = "Modern C# rewrite of Nightscout API with 1:1 compatibility";
+        document.Info.Description = "Modern diabetes management API. For support, join our Discord.";
         document.Info.Contact = new NSwag.OpenApiContact
         {
-            Name = "Nocturne API",
-            Url = "https://github.com/nightscout/nocturne",
+            Name = "Nocturne",
+            Url = "https://discord.gg/H75V4rMwp4",
         };
         document.Info.License = new NSwag.OpenApiLicense
         {
-            Name = "Use under LICX",
-            Url = "https://example.com/license",
+            Name = "AGPL-3.0-or-later",
+            Url = "https://www.gnu.org/licenses/agpl-3.0.html",
+        };
+    };
+});
+
+builder.Services.AddOpenApiDocument(config =>
+{
+    config.DocumentName = "nightscout";
+
+    // Include: V1, V2, and V3 controllers only.
+    config.AddOperationFilter(ctx =>
+    {
+        var ns = ctx.ControllerType.Namespace ?? string.Empty;
+        return ns.Contains(".Controllers.V1.")
+            || ns.EndsWith(".Controllers.V1", StringComparison.Ordinal)
+            || ns.Contains(".Controllers.V2.")
+            || ns.EndsWith(".Controllers.V2", StringComparison.Ordinal)
+            || ns.Contains(".Controllers.V3.")
+            || ns.EndsWith(".Controllers.V3", StringComparison.Ordinal);
+    });
+
+    config.OperationProcessors.Add(new FolderBasedTagOperationProcessor());
+
+    config.PostProcess = document =>
+    {
+        document.Info.Version = "1.0.0";
+        document.Info.Title = "Nightscout API";
+        document.Info.Description = "Legacy Nightscout API compatibility layer. See the original Nightscout documentation at https://nightscout.github.io/";
+        document.Info.Contact = new NSwag.OpenApiContact
+        {
+            Name = "Nocturne",
+            Url = "https://discord.gg/H75V4rMwp4",
+        };
+        document.Info.License = new NSwag.OpenApiLicense
+        {
+            Name = "AGPL-3.0-or-later",
+            Url = "https://www.gnu.org/licenses/agpl-3.0.html",
         };
     };
 });
@@ -305,6 +357,10 @@ app.MapScalarApiReference(options =>
 {
     options.WithTitle("Nocturne API Documentation");
     options.WithTheme(Scalar.AspNetCore.ScalarTheme.Mars);
+    options.AddDocument("nocturne", "Nocturne API", "/openapi/nocturne.json", isDefault: true);
+    options.AddDocument("nightscout", "Nightscout API", "/openapi/nightscout.json", isDefault: false);
+    options.SortTagsAlphabetically();
+    options.WithDefaultOpenAllTags(false);
 });
 
 // Add root endpoint to serve a basic info page
@@ -470,9 +526,24 @@ internal class NSwagStartup
     {
         services.AddControllers()
             .AddApplicationPart(typeof(Nocturne.API.Program).Assembly);
+
+        // NSwag schema extraction: register only the "nocturne" document (V4 + root controllers).
+        // nswag.json targets documentName "nocturne" so only this document is emitted.
         services.AddOpenApiDocument(config =>
         {
+            config.DocumentName = "nocturne";
+
+            config.AddOperationFilter(ctx =>
+            {
+                var ns = ctx.ControllerType.Namespace ?? string.Empty;
+                return ns.Contains(".Controllers.V4.")
+                    || ns.EndsWith(".Controllers.V4", StringComparison.Ordinal)
+                    || ns.Contains(".Controllers.Authentication")
+                    || ns == "Nocturne.API.Controllers";
+            });
+
             config.OperationProcessors.Add(new RemoteFunctionOperationProcessor());
+            config.OperationProcessors.Add(new FolderBasedTagOperationProcessor());
         });
     }
 

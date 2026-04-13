@@ -16,7 +16,6 @@ namespace Nocturne.API.Controllers.V2;
 [ApiController]
 [Route("api/v2/notifications")]
 [Produces("application/json")]
-[Tags("V2 Notifications")]
 [ClientPropertyName("v2Notifications")]
 [Authorize(Policy = PolicyNames.HasPermissions)]
 public class NotificationsController : ControllerBase

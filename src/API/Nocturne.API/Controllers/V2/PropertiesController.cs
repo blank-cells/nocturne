@@ -14,7 +14,6 @@ namespace Nocturne.API.Controllers.V2;
 [ApiController]
 [Route("api/v2/properties")]
 [Produces("application/json")]
-[Tags("V2 Properties")]
 [ClientPropertyName("v2Properties")]
 [Authorize(Policy = PolicyNames.HasPermissions)]
 public class PropertiesController : ControllerBase

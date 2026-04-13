@@ -1,5 +1,5 @@
 using FluentValidation.TestHelper;
-using Nocturne.API.Controllers.V4;
+using Nocturne.API.Controllers.V4.Monitoring;
 using Nocturne.API.Validators.Alerts;
 using Xunit;
 

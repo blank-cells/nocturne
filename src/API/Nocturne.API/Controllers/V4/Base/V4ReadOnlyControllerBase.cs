@@ -12,6 +12,22 @@ public abstract class V4ReadOnlyControllerBase<TModel, TRepository>(TRepository 
 {
     protected TRepository Repository { get; } = repository;
 
+    /// <summary>Lists records with pagination, optional date range, device, and source filtering.</summary>
+    /// <param name="from">Inclusive start of the date range filter.</param>
+    /// <param name="to">Inclusive end of the date range filter.</param>
+    /// <param name="limit">Maximum number of records to return. Defaults to `100`.</param>
+    /// <param name="offset">Number of records to skip for pagination. Defaults to `0`.</param>
+    /// <param name="sort">Sort order for results by timestamp. Defaults to `timestamp_desc`.</param>
+    /// <param name="device">Optional filter to restrict results to a specific device.</param>
+    /// <param name="source">Optional filter to restrict results to a specific data source.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <remarks>
+    /// The `sort` parameter accepts exactly two values:
+    /// - `timestamp_asc` — oldest records first
+    /// - `timestamp_desc` — newest records first (default)
+    ///
+    /// Use `limit` and `offset` together for paginated access to large result sets.
+    /// </remarks>
     [HttpGet]
     [RemoteQuery]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -32,6 +48,10 @@ public abstract class V4ReadOnlyControllerBase<TModel, TRepository>(TRepository 
         return Ok(new PaginatedResponse<TModel> { Data = data, Pagination = new PaginationInfo(limit, offset, total) });
     }
 
+    /// <summary>Retrieves a single record by its unique identifier.</summary>
+    /// <param name="id">The unique identifier of the record.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <remarks>Returns `404 Not Found` if no record with the given <paramref name="id"/> exists.</remarks>
     [HttpGet("{id:guid}")]
     [RemoteQuery]
     [ProducesResponseType(StatusCodes.Status200OK)]

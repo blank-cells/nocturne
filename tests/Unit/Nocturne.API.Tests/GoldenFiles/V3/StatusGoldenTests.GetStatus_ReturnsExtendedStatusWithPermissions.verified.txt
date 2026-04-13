@@ -6,8 +6,22 @@
     result: {
       status: ok,
       name: nightscout,
-      version: 0.0.0.0,
+      version: {Scrubbed},
       serverTime: {Scrubbed},
+      srvDate: {Scrubbed},
+      storage: {
+        storage: postgresql,
+        version: {Scrubbed}
+      },
+      apiVersion: {Scrubbed},
+      apiPermissions: {
+        devicestatus: crud,
+        entries: crud,
+        food: crud,
+        profile: crud,
+        settings: crud,
+        treatments: crud
+      },
       apiEnabled: true,
       careportalEnabled: true,
       head: {Scrubbed},

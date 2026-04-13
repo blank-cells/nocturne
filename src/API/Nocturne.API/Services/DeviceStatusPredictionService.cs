@@ -1,4 +1,5 @@
 using Nocturne.API.Controllers.V4;
+using Nocturne.API.Controllers.V4.Analytics;
 using Nocturne.Core.Models;
 using Nocturne.Core.Contracts.Repositories;
 

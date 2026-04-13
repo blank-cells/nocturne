@@ -1,5 +1,5 @@
 using FluentValidation;
-using Nocturne.API.Controllers.Admin;
+using Nocturne.API.Controllers.V4.PlatformAdmin;
 
 namespace Nocturne.API.Validators.Admin;
 

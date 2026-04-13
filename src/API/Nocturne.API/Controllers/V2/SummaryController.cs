@@ -14,7 +14,6 @@ namespace Nocturne.API.Controllers.V2;
 [ApiController]
 [Route("api/v2/summary")]
 [Produces("application/json")]
-[Tags("V2 Summary")]
 [ClientPropertyName("v2Summary")]
 [Authorize(Policy = PolicyNames.HasPermissions)]
 public class SummaryController : ControllerBase

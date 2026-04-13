@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Nocturne.API.Controllers.Admin;
+using Nocturne.API.Controllers.V4.PlatformAdmin;
 using Nocturne.Core.Contracts.Multitenancy;
 
 namespace Nocturne.API.Tests.Controllers.Admin;

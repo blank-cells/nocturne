@@ -1,0 +1,486 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using OpenApi.Remote.Attributes;
+using Nocturne.Infrastructure.Data;
+using Nocturne.Infrastructure.Data.Entities;
+
+namespace Nocturne.API.Controllers.V4.Monitoring;
+
+/// <summary>
+/// CRUD controller for alert rules with nested schedules, escalation steps, and channels.
+/// </summary>
+[ApiController]
+[Authorize]
+[Route("api/v4/alert-rules")]
+public class AlertRulesController : ControllerBase
+{
+    private readonly IDbContextFactory<NocturneDbContext> _contextFactory;
+    private readonly ILogger<AlertRulesController> _logger;
+
+    public AlertRulesController(
+        IDbContextFactory<NocturneDbContext> contextFactory,
+        ILogger<AlertRulesController> logger)
+    {
+        _contextFactory = contextFactory;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// List all alert rules for the current tenant with schedules and escalation steps.
+    /// </summary>
+    [HttpGet]
+    [RemoteQuery]
+    [ProducesResponseType(typeof(List<AlertRuleResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<AlertRuleResponse>>> GetRules(CancellationToken ct)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var rules = await db.AlertRules
+            .AsNoTracking()
+            .Include(r => r.Schedules)
+                .ThenInclude(s => s.EscalationSteps)
+                    .ThenInclude(es => es.Channels)
+            .OrderBy(r => r.SortOrder)
+            .ToListAsync(ct);
+
+        return Ok(rules.Select(MapToResponse).ToList());
+    }
+
+    /// <summary>
+    /// Get a single alert rule with full schedule/escalation tree.
+    /// </summary>
+    [HttpGet("{id:guid}")]
+    [RemoteQuery]
+    [ProducesResponseType(typeof(AlertRuleResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AlertRuleResponse>> GetRule(Guid id, CancellationToken ct)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var rule = await db.AlertRules
+            .AsNoTracking()
+            .Include(r => r.Schedules)
+                .ThenInclude(s => s.EscalationSteps)
+                    .ThenInclude(es => es.Channels)
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
+
+        if (rule is null)
+            return NotFound();
+
+        return Ok(MapToResponse(rule));
+    }
+
+    /// <summary>
+    /// Create an alert rule with nested schedules, escalation steps, and channels.
+    /// </summary>
+    [HttpPost]
+    [RemoteCommand(Invalidates = ["GetRules"])]
+    [ProducesResponseType(typeof(AlertRuleResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AlertRuleResponse>> CreateRule(
+        [FromBody] CreateAlertRuleRequest request, CancellationToken ct)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var tenantId = db.TenantId;
+
+        var rule = new AlertRuleEntity
+        {
+            Id = Guid.CreateVersion7(),
+            TenantId = tenantId,
+            Name = request.Name,
+            Description = request.Description,
+            ConditionType = request.ConditionType,
+            ConditionParams = request.ConditionParams is not null
+                ? JsonSerializer.Serialize(request.ConditionParams)
+                : "{}",
+            HysteresisMinutes = request.HysteresisMinutes,
+            ConfirmationReadings = request.ConfirmationReadings > 0 ? request.ConfirmationReadings : 1,
+            IsEnabled = request.IsEnabled,
+            SortOrder = request.SortOrder,
+            Severity = request.Severity ?? "normal",
+            ClientConfiguration = request.ClientConfiguration is not null
+                ? JsonSerializer.Serialize(request.ClientConfiguration)
+                : "{}",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        if (request.Schedules is { Count: > 0 })
+        {
+            foreach (var schedReq in request.Schedules)
+            {
+                var schedule = CreateScheduleEntity(schedReq, rule.Id, tenantId);
+                rule.Schedules.Add(schedule);
+            }
+        }
+        else
+        {
+            // Auto-create a default schedule
+            rule.Schedules.Add(new AlertScheduleEntity
+            {
+                Id = Guid.CreateVersion7(),
+                TenantId = tenantId,
+                AlertRuleId = rule.Id,
+                Name = "Default",
+                IsDefault = true,
+                Timezone = "UTC",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            });
+        }
+
+        db.AlertRules.Add(rule);
+        await db.SaveChangesAsync(ct);
+
+        // Reload with includes for response
+        var created = await db.AlertRules
+            .AsNoTracking()
+            .Include(r => r.Schedules)
+                .ThenInclude(s => s.EscalationSteps)
+                    .ThenInclude(es => es.Channels)
+            .FirstAsync(r => r.Id == rule.Id, ct);
+
+        return CreatedAtAction(nameof(GetRule), new { id = created.Id }, MapToResponse(created));
+    }
+
+    /// <summary>
+    /// Update an alert rule.
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    [RemoteCommand(Invalidates = ["GetRules", "GetRule"])]
+    [ProducesResponseType(typeof(AlertRuleResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<AlertRuleResponse>> UpdateRule(
+        Guid id, [FromBody] UpdateAlertRuleRequest request, CancellationToken ct)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var rule = await db.AlertRules
+            .Include(r => r.Schedules)
+                .ThenInclude(s => s.EscalationSteps)
+                    .ThenInclude(es => es.Channels)
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
+
+        if (rule is null)
+            return NotFound();
+
+        var tenantId = db.TenantId;
+
+        rule.Name = request.Name;
+        rule.Description = request.Description;
+        rule.ConditionType = request.ConditionType;
+        rule.ConditionParams = request.ConditionParams is not null
+            ? JsonSerializer.Serialize(request.ConditionParams)
+            : "{}";
+        rule.HysteresisMinutes = request.HysteresisMinutes;
+        rule.ConfirmationReadings = request.ConfirmationReadings > 0 ? request.ConfirmationReadings : 1;
+        rule.IsEnabled = request.IsEnabled;
+        rule.SortOrder = request.SortOrder;
+        rule.Severity = request.Severity ?? "normal";
+        rule.ClientConfiguration = request.ClientConfiguration is not null
+            ? JsonSerializer.Serialize(request.ClientConfiguration)
+            : "{}";
+        rule.UpdatedAt = DateTime.UtcNow;
+
+        if (request.Schedules is not null)
+        {
+            // Remove old schedules (cascade deletes steps and channels)
+            db.AlertSchedules.RemoveRange(rule.Schedules);
+
+            rule.Schedules.Clear();
+            foreach (var schedReq in request.Schedules)
+            {
+                var schedule = CreateScheduleEntity(schedReq, rule.Id, tenantId);
+                rule.Schedules.Add(schedule);
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        // Reload for response
+        var updated = await db.AlertRules
+            .AsNoTracking()
+            .Include(r => r.Schedules)
+                .ThenInclude(s => s.EscalationSteps)
+                    .ThenInclude(es => es.Channels)
+            .FirstAsync(r => r.Id == id, ct);
+
+        return Ok(MapToResponse(updated));
+    }
+
+    /// <summary>
+    /// Delete an alert rule (cascades to schedules, steps, channels).
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [RemoteCommand(Invalidates = ["GetRules"])]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> DeleteRule(Guid id, CancellationToken ct)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var rule = await db.AlertRules.FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (rule is null)
+            return NotFound();
+
+        db.AlertRules.Remove(rule);
+        await db.SaveChangesAsync(ct);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Toggle an alert rule enabled/disabled.
+    /// </summary>
+    [HttpPatch("{id:guid}/toggle")]
+    [RemoteCommand(Invalidates = ["GetRules", "GetRule"])]
+    [ProducesResponseType(typeof(AlertRuleResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<AlertRuleResponse>> ToggleRule(Guid id, CancellationToken ct)
+    {
+        await using var db = await _contextFactory.CreateDbContextAsync(ct);
+
+        var rule = await db.AlertRules
+            .Include(r => r.Schedules)
+                .ThenInclude(s => s.EscalationSteps)
+                    .ThenInclude(es => es.Channels)
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
+
+        if (rule is null)
+            return NotFound();
+
+        rule.IsEnabled = !rule.IsEnabled;
+        rule.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+
+        return Ok(MapToResponse(rule));
+    }
+
+    #region Helpers
+
+    private static AlertScheduleEntity CreateScheduleEntity(
+        CreateAlertScheduleRequest req, Guid ruleId, Guid tenantId)
+    {
+        var schedule = new AlertScheduleEntity
+        {
+            Id = Guid.CreateVersion7(),
+            TenantId = tenantId,
+            AlertRuleId = ruleId,
+            Name = req.Name ?? "Default",
+            IsDefault = req.IsDefault,
+            DaysOfWeek = req.DaysOfWeek is not null
+                ? JsonSerializer.Serialize(req.DaysOfWeek)
+                : null,
+            StartTime = req.StartTime is not null ? TimeOnly.Parse(req.StartTime) : null,
+            EndTime = req.EndTime is not null ? TimeOnly.Parse(req.EndTime) : null,
+            Timezone = req.Timezone ?? "UTC",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        if (req.EscalationSteps is not null)
+        {
+            foreach (var stepReq in req.EscalationSteps)
+            {
+                var step = new AlertEscalationStepEntity
+                {
+                    Id = Guid.CreateVersion7(),
+                    TenantId = tenantId,
+                    AlertScheduleId = schedule.Id,
+                    StepOrder = stepReq.StepOrder,
+                    DelaySeconds = stepReq.DelaySeconds,
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                if (stepReq.Channels is not null)
+                {
+                    foreach (var chReq in stepReq.Channels)
+                    {
+                        step.Channels.Add(new AlertStepChannelEntity
+                        {
+                            Id = Guid.CreateVersion7(),
+                            TenantId = tenantId,
+                            EscalationStepId = step.Id,
+                            ChannelType = chReq.ChannelType,
+                            Destination = chReq.Destination,
+                            DestinationLabel = chReq.DestinationLabel,
+                            CreatedAt = DateTime.UtcNow,
+                        });
+                    }
+                }
+
+                schedule.EscalationSteps.Add(step);
+            }
+        }
+
+        return schedule;
+    }
+
+    private static AlertRuleResponse MapToResponse(AlertRuleEntity entity) => new()
+    {
+        Id = entity.Id,
+        Name = entity.Name,
+        Description = entity.Description,
+        ConditionType = entity.ConditionType,
+        ConditionParams = DeserializeJson(entity.ConditionParams),
+        HysteresisMinutes = entity.HysteresisMinutes,
+        ConfirmationReadings = entity.ConfirmationReadings,
+        IsEnabled = entity.IsEnabled,
+        SortOrder = entity.SortOrder,
+        Severity = entity.Severity,
+        ClientConfiguration = DeserializeJson(entity.ClientConfiguration),
+        Schedules = entity.Schedules
+            .Select(s => new AlertScheduleResponse
+            {
+                Id = s.Id,
+                Name = s.Name,
+                IsDefault = s.IsDefault,
+                DaysOfWeek = s.DaysOfWeek is not null
+                    ? JsonSerializer.Deserialize<int[]>(s.DaysOfWeek)
+                    : null,
+                StartTime = s.StartTime?.ToString("HH:mm"),
+                EndTime = s.EndTime?.ToString("HH:mm"),
+                Timezone = s.Timezone,
+                EscalationSteps = s.EscalationSteps
+                    .OrderBy(es => es.StepOrder)
+                    .Select(es => new AlertEscalationStepResponse
+                    {
+                        Id = es.Id,
+                        StepOrder = es.StepOrder,
+                        DelaySeconds = es.DelaySeconds,
+                        Channels = es.Channels
+                            .Select(ch => new AlertStepChannelResponse
+                            {
+                                Id = ch.Id,
+                                ChannelType = ch.ChannelType,
+                                Destination = ch.Destination,
+                                DestinationLabel = ch.DestinationLabel,
+                            })
+                            .ToList(),
+                    })
+                    .ToList(),
+            })
+            .ToList(),
+    };
+
+    private static object DeserializeJson(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<JsonElement>(json);
+        }
+        catch
+        {
+            return new { };
+        }
+    }
+
+    #endregion
+}
+
+#region DTOs
+
+public class AlertRuleResponse
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ConditionType { get; set; } = string.Empty;
+    public object ConditionParams { get; set; } = new { };
+    public int HysteresisMinutes { get; set; }
+    public int ConfirmationReadings { get; set; }
+    public bool IsEnabled { get; set; }
+    public int SortOrder { get; set; }
+    public string Severity { get; set; } = "normal";
+    public object ClientConfiguration { get; set; } = new { };
+    public List<AlertScheduleResponse> Schedules { get; set; } = [];
+}
+
+public class AlertScheduleResponse
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public bool IsDefault { get; set; }
+    public int[]? DaysOfWeek { get; set; }
+    public string? StartTime { get; set; }
+    public string? EndTime { get; set; }
+    public string Timezone { get; set; } = "UTC";
+    public List<AlertEscalationStepResponse> EscalationSteps { get; set; } = [];
+}
+
+public class AlertEscalationStepResponse
+{
+    public Guid Id { get; set; }
+    public int StepOrder { get; set; }
+    public int DelaySeconds { get; set; }
+    public List<AlertStepChannelResponse> Channels { get; set; } = [];
+}
+
+public class AlertStepChannelResponse
+{
+    public Guid Id { get; set; }
+    public string ChannelType { get; set; } = string.Empty;
+    public string Destination { get; set; } = string.Empty;
+    public string? DestinationLabel { get; set; }
+}
+
+public class CreateAlertRuleRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ConditionType { get; set; } = string.Empty;
+    public object? ConditionParams { get; set; }
+    public int HysteresisMinutes { get; set; }
+    public int ConfirmationReadings { get; set; } = 1;
+    public bool IsEnabled { get; set; } = true;
+    public int SortOrder { get; set; }
+    public string? Severity { get; set; }
+    public object? ClientConfiguration { get; set; }
+    public List<CreateAlertScheduleRequest>? Schedules { get; set; }
+}
+
+public class UpdateAlertRuleRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ConditionType { get; set; } = string.Empty;
+    public object? ConditionParams { get; set; }
+    public int HysteresisMinutes { get; set; }
+    public int ConfirmationReadings { get; set; } = 1;
+    public bool IsEnabled { get; set; } = true;
+    public int SortOrder { get; set; }
+    public string? Severity { get; set; }
+    public object? ClientConfiguration { get; set; }
+    public List<CreateAlertScheduleRequest>? Schedules { get; set; }
+}
+
+public class CreateAlertScheduleRequest
+{
+    public string? Name { get; set; }
+    public bool IsDefault { get; set; }
+    public int[]? DaysOfWeek { get; set; }
+    public string? StartTime { get; set; }
+    public string? EndTime { get; set; }
+    public string? Timezone { get; set; }
+    public List<CreateAlertEscalationStepRequest>? EscalationSteps { get; set; }
+}
+
+public class CreateAlertEscalationStepRequest
+{
+    public int StepOrder { get; set; }
+    public int DelaySeconds { get; set; }
+    public List<CreateAlertStepChannelRequest>? Channels { get; set; }
+}
+
+public class CreateAlertStepChannelRequest
+{
+    public string ChannelType { get; set; } = string.Empty;
+    public string Destination { get; set; } = string.Empty;
+    public string? DestinationLabel { get; set; }
+}
+
+#endregion

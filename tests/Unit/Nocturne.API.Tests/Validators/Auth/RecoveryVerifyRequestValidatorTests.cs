@@ -1,5 +1,5 @@
 using FluentValidation.TestHelper;
-using Nocturne.API.Controllers;
+using Nocturne.API.Controllers.Authentication;
 using Nocturne.API.Validators.Auth;
 using Xunit;
 

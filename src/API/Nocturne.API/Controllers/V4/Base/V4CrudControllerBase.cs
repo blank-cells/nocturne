@@ -16,6 +16,14 @@ public abstract class V4CrudControllerBase<TModel, TCreateRequest, TUpdateReques
     protected abstract TModel MapCreateToModel(TCreateRequest request);
     protected abstract TModel MapUpdateToModel(Guid id, TUpdateRequest request, TModel existing);
 
+    /// <summary>Creates a new record and returns it with a `Location` header pointing to the created resource.</summary>
+    /// <param name="request">The data used to create the record.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <remarks>
+    /// `Timestamp` must be set on the mapped model; requests that resolve to a default timestamp are rejected with `400 Bad Request`.
+    ///
+    /// On success, responds with `201 Created` and a `Location` header containing the URL of the newly created record.
+    /// </remarks>
     [HttpPost]
     [RemoteForm]
     [ProducesResponseType(StatusCodes.Status201Created)]
@@ -32,6 +40,15 @@ public abstract class V4CrudControllerBase<TModel, TCreateRequest, TUpdateReques
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
+    /// <summary>Updates an existing record by ID and returns the updated record.</summary>
+    /// <param name="id">The unique identifier of the record to update.</param>
+    /// <param name="request">The data to apply to the existing record.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <remarks>
+    /// Returns `404 Not Found` if no record with the given <paramref name="id"/> exists.
+    ///
+    /// `Timestamp` must be set on the mapped model; requests that resolve to a default timestamp are rejected with `400 Bad Request`.
+    /// </remarks>
     [HttpPut("{id:guid}")]
     [RemoteForm]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -59,6 +76,10 @@ public abstract class V4CrudControllerBase<TModel, TCreateRequest, TUpdateReques
         }
     }
 
+    /// <summary>Deletes a record by ID.</summary>
+    /// <param name="id">The unique identifier of the record to delete.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <remarks>Returns `204 No Content` on success, or `404 Not Found` if no record with the given <paramref name="id"/> exists.</remarks>
     [HttpDelete("{id:guid}")]
     [RemoteCommand]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

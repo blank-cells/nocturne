@@ -13,7 +13,6 @@ namespace Nocturne.API.Controllers.V1;
 [ApiController]
 [Route("api/v1/[controller]")]
 [Produces("application/json")]
-[Tags("V1 IOB")]
 [ClientPropertyName("iob")]
 public class IobController : ControllerBase
 {

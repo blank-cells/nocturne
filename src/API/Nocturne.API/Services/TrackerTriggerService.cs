@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Nocturne.API.Controllers.V4.Monitoring;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Data.Abstractions;
 
@@ -130,7 +131,7 @@ public class TrackerTriggerService : ITrackerTriggerService
                     // Broadcast the completion
                     await _broadcast.BroadcastTrackerUpdateAsync(
                         "update",
-                        Nocturne.API.Controllers.V4.TrackerInstanceDto.FromEntity(activeInstance)
+                        TrackerInstanceDto.FromEntity(activeInstance)
                     );
                 }
             }
@@ -157,7 +158,7 @@ public class TrackerTriggerService : ITrackerTriggerService
             // Broadcast the new instance
             await _broadcast.BroadcastTrackerUpdateAsync(
                 "create",
-                Nocturne.API.Controllers.V4.TrackerInstanceDto.FromEntity(newInstance)
+                TrackerInstanceDto.FromEntity(newInstance)
             );
         }
     }

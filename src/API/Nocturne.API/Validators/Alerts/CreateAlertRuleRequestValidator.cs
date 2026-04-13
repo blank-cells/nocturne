@@ -1,5 +1,5 @@
 using FluentValidation;
-using Nocturne.API.Controllers.V4;
+using Nocturne.API.Controllers.V4.Monitoring;
 
 namespace Nocturne.API.Validators.Alerts;
 

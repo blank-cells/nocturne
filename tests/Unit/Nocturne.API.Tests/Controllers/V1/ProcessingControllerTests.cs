@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Nocturne.API.Controllers.V4;
+using Nocturne.API.Controllers.V4.TenantAdmin;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Xunit;

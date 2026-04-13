@@ -453,12 +453,22 @@ public class StatusService : IStatusService
         var basicStatus = await GetSystemStatusAsync();
         var startTime = Environment.TickCount64;
 
+        var storageVersion = await GetPostgresVersionAsync();
+
         var response = new V3StatusResponse
         {
+            Storage = new StorageInfo
+            {
+                StorageType = "postgresql",
+                Version = storageVersion,
+            },
+            ApiPermissions = GetV3ApiPermissions(),
+            ApiVersion = basicStatus.Head ?? "unknown",
             Status = basicStatus.Status,
             Name = basicStatus.Name ?? "Nocturne",
             Version = basicStatus.Version ?? "unknown",
             ServerTime = basicStatus.ServerTime,
+            SrvDate = new DateTimeOffset(basicStatus.ServerTime).ToUnixTimeMilliseconds(),
             ApiEnabled = basicStatus.ApiEnabled,
             CareportalEnabled = basicStatus.CareportalEnabled ?? false,
             Head = basicStatus.Head ?? "unknown",
@@ -613,6 +623,43 @@ public class StatusService : IStatusService
             Roles =
                 authContext.Roles?.Distinct(StringComparer.OrdinalIgnoreCase).ToList()
                 ?? new List<string>(),
+        };
+    }
+
+    /// <summary>
+    /// Get the PostgreSQL server version string (cached with basic status)
+    /// </summary>
+    private async Task<string> GetPostgresVersionAsync()
+    {
+        try
+        {
+            await using var ctx = await _dbContextFactory.CreateDbContextAsync();
+            var version = await ctx.Database.ExecuteSqlRawAsync("SELECT 1");
+            var conn = ctx.Database.GetDbConnection();
+            if (conn.State != System.Data.ConnectionState.Open)
+                await conn.OpenAsync();
+            return conn.ServerVersion;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to retrieve PostgreSQL version");
+            return "unknown";
+        }
+    }
+
+    /// <summary>
+    /// Get per-collection CRUD permission strings matching legacy Nightscout apiPermissions format
+    /// </summary>
+    private static Dictionary<string, string> GetV3ApiPermissions()
+    {
+        return new Dictionary<string, string>
+        {
+            ["devicestatus"] = "crud",
+            ["entries"] = "crud",
+            ["food"] = "crud",
+            ["profile"] = "crud",
+            ["settings"] = "crud",
+            ["treatments"] = "crud",
         };
     }
 

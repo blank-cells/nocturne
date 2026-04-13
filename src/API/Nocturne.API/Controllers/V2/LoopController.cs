@@ -14,7 +14,6 @@ namespace Nocturne.API.Controllers.V2;
 [ApiController]
 [Route("api/v2")]
 [Produces("application/json")]
-[Tags("Loop Notifications")]
 [Authorize(Policy = PolicyNames.HasPermissions)]
 public class LoopController : ControllerBase
 {

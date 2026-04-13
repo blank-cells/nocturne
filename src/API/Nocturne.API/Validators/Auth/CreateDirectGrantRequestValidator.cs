@@ -1,5 +1,5 @@
 using FluentValidation;
-using Nocturne.API.Controllers;
+using Nocturne.API.Controllers.Authentication;
 using Nocturne.Core.Models.Authorization;
 
 namespace Nocturne.API.Validators.Auth;

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Nocturne.API.Controllers;
+using Nocturne.API.Controllers.Authentication;
 using Nocturne.API.Middleware.Handlers;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Contracts.Multitenancy;

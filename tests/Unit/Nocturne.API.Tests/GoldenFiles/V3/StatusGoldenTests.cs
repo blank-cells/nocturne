@@ -15,7 +15,7 @@ public class StatusGoldenTests : GoldenFileTestBase
         var captured = await CaptureResponse(response);
 
         await Verify(captured)
-            .ScrubMembers("serverTime", "serverTimeEpoch", "uptimeMs", "head");
+            .ScrubMembers("serverTime", "serverTimeEpoch", "srvDate", "uptimeMs", "head", "apiVersion", "version");
     }
 
     #endregion

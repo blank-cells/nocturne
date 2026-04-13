@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Nocturne.API.Controllers.V4;
+using Nocturne.API.Controllers.V4.Monitoring;
 using Nocturne.Core.Contracts;
 using Nocturne.Core.Models;
 using Nocturne.Infrastructure.Data.Abstractions;

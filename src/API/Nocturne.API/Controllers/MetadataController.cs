@@ -16,6 +16,7 @@ namespace Nocturne.API.Controllers;
 /// Metadata controller that exposes type definitions for frontend clients
 /// </summary>
 [ApiController]
+[ApiExplorerSettings(IgnoreApi = true)]
 [Route("api/[controller]")]
 [Tags("Metadata")]
 [AllowDuringSetup]

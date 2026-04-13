@@ -14,7 +14,6 @@ namespace Nocturne.API.Controllers.V2;
 [ApiController]
 [Route("api/v2/ddata")]
 [Produces("application/json")]
-[Tags("V2 DData")]
 [ClientPropertyName("v2DData")]
 [Authorize(Policy = PolicyNames.HasPermissions)]
 public class DDataController : ControllerBase

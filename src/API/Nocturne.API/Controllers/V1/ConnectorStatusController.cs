@@ -9,7 +9,6 @@ namespace Nocturne.API.Controllers.V1;
 [Authorize]
 [ApiController]
 [Route("api/v1/connectors")]
-[Tags("V1 Connector Status")]
 public class ConnectorStatusController : ControllerBase
 {
     private readonly IConnectorHealthService _healthService;
