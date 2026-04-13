@@ -7,14 +7,19 @@
   import ContentSidebar from './ContentSidebar.svelte';
   import PreviewPane from './PreviewPane.svelte';
 
+  import type { Component } from 'svelte';
+
   let {
     config,
     callbacks,
     components = [],
+    previewComponentMap = {},
   }: {
     config: ContentTypeConfig;
     callbacks: EditorCallbacks;
     components?: ComponentDefinition[];
+    /** Map of component names to actual Svelte components for live preview */
+    previewComponentMap?: Record<string, Component>;
   } = $props();
 
   const editorExtensions = components.length > 0 ? [SvelteComponentExtension(components)] : [];
@@ -134,5 +139,5 @@
     </div>
   </div>
 
-  <PreviewPane content={previewHtml} mode={config.preview} />
+  <PreviewPane content={previewHtml} mode={config.preview} componentMap={previewComponentMap} />
 </div>

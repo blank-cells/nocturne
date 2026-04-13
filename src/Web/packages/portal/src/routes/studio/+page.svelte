@@ -4,6 +4,7 @@
   import { toSvx } from '@nocturne/cms/editor/markdown';
   import type { ContentTypeConfig, EditorCallbacks, ContentItem, ContentData } from '@nocturne/cms/editor/types';
   import type { ComponentDefinition } from '@nocturne/cms/editor/extensions/svelte-component';
+  import LanguageSelector from '$lib/components/LanguageSelector.svelte';
 
   const portalComponents: ComponentDefinition[] = [
     {
@@ -13,6 +14,10 @@
       defaultProps: { compact: 'true' },
     },
   ];
+
+  const previewComponents: Record<string, typeof LanguageSelector> = {
+    LanguageSelector,
+  };
 
   const STORAGE_KEY = 'nocturne-studio-blog';
 
@@ -145,4 +150,4 @@
   <title>Studio - Nocturne</title>
 </svelte:head>
 
-<ContentEditor {config} {callbacks} components={portalComponents} />
+<ContentEditor {config} {callbacks} components={portalComponents} previewComponentMap={previewComponents} />
